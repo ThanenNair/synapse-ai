@@ -84,6 +84,39 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;color:var(-
 @keyframes spUp  {from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 @keyframes spFill{from{transform:scaleX(0);}to{transform:scaleX(1);}}
 
+/* ─── AURORA BACKDROP (splash · login · welcome) ── */
+#splash::before,#login-page::before,#welcomeScreen::before{
+  content:'';position:absolute;inset:-20%;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(38% 30% at 22% 28%, rgba(6,197,217,.30), transparent 70%),
+    radial-gradient(32% 26% at 78% 72%, rgba(6,214,160,.20), transparent 70%),
+    radial-gradient(45% 38% at 68% 18%, rgba(26,86,219,.38), transparent 72%);
+  filter:blur(46px);
+  animation:auroraDrift 16s ease-in-out infinite alternate;
+  will-change:transform;
+}
+@keyframes auroraDrift{
+  from{transform:translate3d(-2%,-1.5%,0) scale(1) rotate(0deg);}
+  to  {transform:translate3d(2.5%,2%,0) scale(1.08) rotate(2.5deg);}
+}
+#login-page::after{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 42%,#000 30%,transparent 75%);
+  mask-image:radial-gradient(ellipse 70% 60% at 50% 42%,#000 30%,transparent 75%);
+}
+#splash>div,#welcomeScreen>div{position:relative;z-index:1;}
+
+/* Splash pulse line draws itself in */
+.sp-logo path.pulse{
+  stroke-dasharray:100;stroke-dashoffset:100;
+  animation:pulseDraw 1s var(--ease) .6s forwards;
+}
+@keyframes pulseDraw{to{stroke-dashoffset:0;}}
+
 /* ─── WELCOME ANIMATION ──────────────────────────── */
 #welcomeScreen{
   position:fixed;inset:0;z-index:998;
@@ -129,7 +162,9 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;color:var(-
 
 /* ─── HEADER ─────────────────────────────────────── */
 .hdr{
-  background:rgba(9,17,48,0.97);
+  background:rgba(9,17,48,0.88);
+  backdrop-filter:blur(16px) saturate(150%);
+  -webkit-backdrop-filter:blur(16px) saturate(150%);
   border-bottom:1px solid rgba(255,255,255,0.09);
   padding:.7rem 1.4rem;
   display:flex;align-items:center;justify-content:space-between;
@@ -137,9 +172,14 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;color:var(-
   position:relative;z-index:10;
   flex-shrink:0;
 }
+.hdr::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent 5%,rgba(6,197,217,.55) 50%,transparent 95%);
+  pointer-events:none;
+}
 .hdr-left{display:flex;align-items:center;gap:.75rem;}
 .hdr-name{font-family:'Poppins',sans-serif;font-weight:700;font-size:1.3rem;color:#fff;letter-spacing:-.3px;}
-.hdr-name em{color:var(--accent);font-style:normal;}
+.hdr-name em{color:var(--accent);font-style:normal;text-shadow:0 0 18px rgba(6,197,217,.65);}
 .hdr-badge{
   font-size:.65rem;letter-spacing:2px;text-transform:uppercase;
   background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);
@@ -152,9 +192,9 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;color:var(-
   color:#fff;padding:.45rem .9rem;border-radius:8px;cursor:pointer;
   font-size:.78rem;font-family:'Inter',sans-serif;font-weight:500;
   display:flex;align-items:center;gap:.4rem;
-  transition:opacity .18s;
+  transition:background .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease);
 }
-.hdr-btn:hover{opacity:.75;}
+.hdr-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35);transform:translateY(-1px);}
 .dot{width:7px;height:7px;border-radius:50%;}
 .dot.on{background:var(--accent2);box-shadow:0 0 6px rgba(6,214,160,.6);}
 .dot.off{background:var(--danger);}
@@ -908,12 +948,14 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
   background:var(--grad-primary);
   display:none;flex-direction:column;
   align-items:center;justify-content:center;
+  overflow:hidden;
 }
 .login-logo-wrap{
   display:flex;flex-direction:column;align-items:center;gap:.4rem;
   transform:translateY(30px);
   transition:transform .75s cubic-bezier(.4,0,.2,1);
   will-change:transform;
+  position:relative;z-index:1;
 }
 .login-logo-wrap.shifted{transform:translateY(-14px);}
 .login-logo-name{
@@ -926,39 +968,58 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
   color:rgba(255,255,255,.45);margin-top:.1rem;
 }
 .login-card{
-  width:360px;background:#fff;border-radius:20px;padding:2rem;
+  width:360px;border-radius:20px;padding:2rem;
   margin-top:1.75rem;
-  box-shadow:0 28px 70px rgba(0,0,0,.3);
+  background:rgba(13,25,55,.55);
+  backdrop-filter:blur(22px) saturate(140%);
+  -webkit-backdrop-filter:blur(22px) saturate(140%);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 28px 70px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);
   opacity:0;transform:translateY(28px);
   transition:opacity .5s ease,transform .5s ease;
+  position:relative;z-index:1;
 }
 .login-card.visible{opacity:1;transform:translateY(0);}
 .login-title{
   font-family:'Poppins',sans-serif;font-size:1.2rem;font-weight:700;
-  color:var(--primary);margin-bottom:.2rem;
+  color:#fff;margin-bottom:.2rem;
 }
-.login-sub{font-size:.78rem;color:var(--text-muted);margin-bottom:1.4rem;}
+.login-sub{font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:1.4rem;}
 .login-err{
-  font-size:.74rem;color:var(--danger);
-  background:#fef2f2;border:1px solid #fecaca;
+  font-size:.74rem;color:#fca5a5;
+  background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.4);
   border-radius:7px;padding:.5rem .75rem;margin-bottom:.85rem;
   display:none;
 }
 .login-err.on{display:block;}
 .login-toggle{
   text-align:center;margin-top:1.1rem;
-  font-size:.76rem;color:var(--text-muted);
+  font-size:.76rem;color:rgba(255,255,255,.5);
 }
 .login-toggle a{color:var(--accent);cursor:pointer;font-weight:600;}
 .login-toggle a:hover{text-decoration:underline;}
 .login-submit{
   width:100%;margin-top:.25rem;
-  background:var(--grad-primary);color:#fff;border:none;
+  background:linear-gradient(135deg,#06c5d9,#1a56db);color:#fff;border:none;
   font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;
   padding:.65rem 1rem;border-radius:9px;cursor:pointer;
-  transition:opacity .18s;
+  box-shadow:0 10px 26px rgba(6,197,217,.28);
+  transition:transform .22s var(--spring), box-shadow .25s var(--ease), filter .2s ease;
 }
-.login-submit:hover{opacity:.87;}
+.login-submit:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(6,197,217,.42);filter:brightness(1.07);}
+.login-submit:active{transform:translateY(0);}
+/* Dark glass inputs — scoped to the login card only (modals elsewhere stay light) */
+.login-card .modal-label{color:rgba(255,255,255,.55);}
+.login-card .modal-input{
+  background:rgba(255,255,255,.07);
+  border-color:rgba(255,255,255,.16);color:#fff;
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease);
+}
+.login-card .modal-input::placeholder{color:rgba(255,255,255,.35);}
+.login-card .modal-input:focus{
+  border-color:var(--accent);background:rgba(255,255,255,.1);
+  box-shadow:0 0 0 3px rgba(6,197,217,.18);
+}
 
 /* ─── HAMBURGER BUTTON ───────────────────────────── */
 .hbtn{
@@ -966,9 +1027,9 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
   cursor:pointer;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:4px;
-  transition:background .18s;flex-shrink:0;
+  transition:background .2s var(--ease), transform .2s var(--ease);flex-shrink:0;
 }
-.hbtn:hover{background:rgba(255,255,255,.24);}
+.hbtn:hover{background:rgba(255,255,255,.24);transform:translateY(-1px);}
 .hbtn span{display:block;width:15px;height:1.8px;background:#fff;border-radius:99px;}
 
 /* User badge in header */
@@ -988,9 +1049,9 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
   color:rgba(255,255,255,.7);padding:.3rem .65rem;border-radius:7px;
   cursor:pointer;font-size:.7rem;font-family:'Inter',sans-serif;
-  transition:opacity .18s;
+  transition:background .2s var(--ease), color .2s var(--ease), transform .2s var(--ease);
 }
-.hdr-signout:hover{opacity:.72;}
+.hdr-signout:hover{background:rgba(239,68,68,.18);color:#fca5a5;transform:translateY(-1px);}
 
 /* ─── CPG LIBRARY OVERLAY ───────────────────────── */
 #cpgLibrary{
@@ -2689,6 +2750,34 @@ body.dark .devms-next{background:var(--bg2);}
 .io-tab-wrap .io-columns{padding:0;overflow:visible;}
 .io-tab-wrap .io-list{max-height:140px;}
 .io-tab-wrap .io-bottom{padding:.7rem 0 0;background:transparent;}
+
+/* ─── MODERN POLISH — panel entrance, focus glows, scrollbars ── */
+#app.visible .tabs > .panel{animation:panelIn .55s var(--ease) both;}
+#app.visible .tabs > .panel:nth-child(2){animation-delay:.09s;}
+#app.visible .tabs > .panel:nth-child(3){animation-delay:.18s;}
+@keyframes panelIn{
+  from{opacity:0;transform:translateY(16px) scale(.985);}
+  to  {opacity:1;transform:none;}
+}
+.panel{transition:box-shadow .3s var(--ease);}
+.panel:hover{box-shadow:0 8px 38px var(--shadow);}
+
+/* Soft accent focus ring on all form inputs */
+.finput{transition:border-color .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);}
+.finput:focus{box-shadow:0 0 0 3px rgba(6,197,217,.13);}
+.modal-input{transition:border-color .2s var(--ease), box-shadow .2s var(--ease);}
+.modal-input:focus{box-shadow:0 0 0 3px rgba(6,197,217,.13);}
+
+/* Slim modern scrollbars, app-wide */
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{
+  background:rgba(100,116,139,.32);border-radius:99px;
+  border:2px solid transparent;background-clip:padding-box;
+}
+::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,.55);border:2px solid transparent;background-clip:padding-box;}
+body.dark ::-webkit-scrollbar-thumb{background:rgba(148,163,184,.28);border:2px solid transparent;background-clip:padding-box;}
+body.dark ::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,.5);border:2px solid transparent;background-clip:padding-box;}
 </style>
 </head>
 <body>
@@ -2702,30 +2791,26 @@ body.dark .devms-next{background:var(--bg2);}
           <stop offset="0%" stop-color="#06c5d9"/>
           <stop offset="100%" stop-color="#1a56db"/>
         </linearGradient>
-        <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="g2" x1="0%" y1="100%" x2="100%" y2="0%">
           <stop offset="0%" stop-color="#06d6a0"/>
           <stop offset="100%" stop-color="#06c5d9"/>
         </linearGradient>
-        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
+        <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="3.5" result="blur"/>
           <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-      <!-- Connection lines -->
-      <line x1="55" y1="18" x2="22" y2="78" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <line x1="55" y1="18" x2="88" y2="78" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <line x1="22" y1="78" x2="88" y2="78" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <line x1="55" y1="18" x2="55" y2="55" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-      <line x1="22" y1="78" x2="55" y2="55" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-      <line x1="88" y1="78" x2="55" y2="55" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-      <!-- Outer nodes -->
-      <circle cx="55" cy="18" r="9" fill="url(#g2)"/>
-      <circle cx="22" cy="78" r="9" fill="url(#g2)"/>
-      <circle cx="88" cy="78" r="9" fill="url(#g2)"/>
-      <!-- Center node -->
-      <circle cx="55" cy="55" r="16" fill="url(#g1)" filter="url(#glow)"/>
-      <!-- Synapse bolt -->
-      <path d="M58 46 L52 55 L57 55 L51 64" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Orbital arcs -->
+      <path d="M15.5 40.6 A42 42 0 1 1 87.2 82" stroke="url(#g1)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M76 91.4 A42 42 0 0 1 13 55" stroke="url(#g2)" stroke-width="6" stroke-linecap="round" fill="none" opacity=".55"/>
+      <!-- Satellite nodes in the orbit gaps -->
+      <circle cx="82.3" cy="87.4" r="3.2" fill="#06d6a0"/>
+      <circle cx="13.6" cy="47.7" r="2.6" fill="#06c5d9" opacity=".85"/>
+      <!-- Neural pulse -->
+      <path class="pulse" d="M30 55 L43 55 L50 38 L60 72 L67 55 L80 55" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#glow)"/>
+      <!-- Pulse endpoint nodes -->
+      <circle cx="30" cy="55" r="3.4" fill="url(#g2)"/>
+      <circle cx="80" cy="55" r="3.4" fill="url(#g2)"/>
     </svg>
   </div>
   <div class="sp-name">Synapse <em>AI</em></div>
@@ -2798,20 +2883,16 @@ body.dark .devms-next{background:var(--bg2);}
     <svg width="72" height="72" viewBox="0 0 110 110" fill="none">
       <defs>
         <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06c5d9"/><stop offset="100%" stop-color="#1a56db"/></linearGradient>
-        <linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06d6a0"/><stop offset="100%" stop-color="#06c5d9"/></linearGradient>
-        <filter id="lglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <linearGradient id="lg2" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#06d6a0"/><stop offset="100%" stop-color="#06c5d9"/></linearGradient>
+        <filter id="lglow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>
-      <line x1="55" y1="18" x2="22" y2="78" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <line x1="55" y1="18" x2="88" y2="78" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <line x1="22" y1="78" x2="88" y2="78" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
-      <line x1="55" y1="18" x2="55" y2="55" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-      <line x1="22" y1="78" x2="55" y2="55" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-      <line x1="88" y1="78" x2="55" y2="55" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-      <circle cx="55" cy="18" r="9" fill="url(#lg2)"/>
-      <circle cx="22" cy="78" r="9" fill="url(#lg2)"/>
-      <circle cx="88" cy="78" r="9" fill="url(#lg2)"/>
-      <circle cx="55" cy="55" r="16" fill="url(#lg1)" filter="url(#lglow)"/>
-      <path d="M58 46 L52 55 L57 55 L51 64" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M15.5 40.6 A42 42 0 1 1 87.2 82" stroke="url(#lg1)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M76 91.4 A42 42 0 0 1 13 55" stroke="url(#lg2)" stroke-width="6" stroke-linecap="round" fill="none" opacity=".55"/>
+      <circle cx="82.3" cy="87.4" r="3.2" fill="#06d6a0"/>
+      <circle cx="13.6" cy="47.7" r="2.6" fill="#06c5d9" opacity=".85"/>
+      <path d="M30 55 L43 55 L50 38 L60 72 L67 55 L80 55" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#lglow)"/>
+      <circle cx="30" cy="55" r="3.4" fill="url(#lg2)"/>
+      <circle cx="80" cy="55" r="3.4" fill="url(#lg2)"/>
     </svg>
     <div class="login-logo-name">Synapse <em>AI</em></div>
     <div class="login-logo-sub">Clinical Intelligence Platform</div>
@@ -2864,16 +2945,15 @@ body.dark .devms-next{background:var(--bg2);}
       <svg width="32" height="32" viewBox="0 0 110 110" fill="none">
         <defs>
           <linearGradient id="hg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06c5d9"/><stop offset="100%" stop-color="#1a56db"/></linearGradient>
-          <linearGradient id="hg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06d6a0"/><stop offset="100%" stop-color="#06c5d9"/></linearGradient>
+          <linearGradient id="hg2" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#06d6a0"/><stop offset="100%" stop-color="#06c5d9"/></linearGradient>
         </defs>
-        <line x1="55" y1="18" x2="22" y2="78" stroke="rgba(255,255,255,.3)" stroke-width="2"/>
-        <line x1="55" y1="18" x2="88" y2="78" stroke="rgba(255,255,255,.3)" stroke-width="2"/>
-        <line x1="22" y1="78" x2="88" y2="78" stroke="rgba(255,255,255,.3)" stroke-width="2"/>
-        <circle cx="55" cy="18" r="9" fill="url(#hg2)"/>
-        <circle cx="22" cy="78" r="9" fill="url(#hg2)"/>
-        <circle cx="88" cy="78" r="9" fill="url(#hg2)"/>
-        <circle cx="55" cy="55" r="16" fill="url(#hg1)"/>
-        <path d="M58 46 L52 55 L57 55 L51 64" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M15.5 40.6 A42 42 0 1 1 87.2 82" stroke="url(#hg1)" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <path d="M76 91.4 A42 42 0 0 1 13 55" stroke="url(#hg2)" stroke-width="7" stroke-linecap="round" fill="none" opacity=".55"/>
+        <circle cx="82.3" cy="87.4" r="3.6" fill="#06d6a0"/>
+        <circle cx="13.6" cy="47.7" r="3" fill="#06c5d9" opacity=".85"/>
+        <path d="M30 55 L43 55 L50 38 L60 72 L67 55 L80 55" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="30" cy="55" r="4" fill="url(#hg2)"/>
+        <circle cx="80" cy="55" r="4" fill="url(#hg2)"/>
       </svg>
       <div class="hdr-name">Synapse <em>AI</em></div>
       <div class="hdr-badge">Clinical Intelligence</div>
