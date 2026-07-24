@@ -5,8 +5,29 @@
 `main` branch root on every push. The working file is now `index.html` (renamed from
 `synapse.html` so it serves at the clean root URL). To update the live site: edit `index.html`,
 commit, `git push` — it's live again within about a minute, no manual rebuild step. Repo is
-public (required for free Pages on a personal GitHub account); no secrets are stored in it — the
-OpenRouter key and login accounts are per-browser localStorage only.
+public (required for free Pages on a personal GitHub account).
+
+## 🔐 Accounts + data now sync across devices (Supabase)
+Login used to be 100% local (localStorage only) — an account made on one device didn't exist on
+any other. As of 2026-07-24 it's backed by a real Supabase project ("Synapse",
+`lyurhgtwqrjutpiyndvo`, free tier), so the same username/password now works from any device, and
+patient info/sessions/chat/settings sync too (not just the login).
+
+**Heads up:** this means patient-identifying data now leaves the device into a cloud database.
+That was a deliberate choice made after being told explicitly what it implies — not an oversight.
+Worth re-checking against hospital data-handling policy / PDPA if that hasn't happened already.
+
+How it works: the login screen is unchanged (username + password, no email shown), but under the
+hood each username maps to a fake `<user>@synapse.users.local` address for Supabase Auth. All of
+a user's localStorage data (everything prefixed `sai_u_<username>_`) is synced as one JSON blob to
+a `user_storage` table — pulled on login, pushed on logout / every 45s / on tab-hide. Nothing else
+in the app changed; every feature still just reads/writes localStorage as before.
+
+Supabase dashboard: supabase.com, project "Synapse" under "Thanen's Org". The publishable API key
+is intentionally embedded in `index.html` (safe — it's not a secret, access control is enforced by
+Postgres Row Level Security policies on the `user_storage` table, not by hiding this key). Auth →
+Sign In/Providers has "Confirm email" turned off — leave it off, the synthetic addresses can't
+receive mail and turning it back on would break every signup.
 
 ## Latest session — Persistent side-rail redesign (2026-07-24, same day, later)
 
