@@ -1,5 +1,49 @@
-# Handoff: Synapse AI — Paediatric Tools Sync
-**Date:** 2026-06-29  
+# Handoff: Synapse AI
+
+## Latest session — Dark theme redesign (2026-07-24)
+
+**Goal:** Default the app to a true OLED-black dark theme, strip decorative blue/purple/teal
+colour from structural chrome, but keep the cyan/teal brand accent on the logo and primary
+CTA. Fix a couple of longstanding hardcoded-navy bugs found along the way.
+
+**What changed:**
+- App now boots into dark mode by default (`<body class="dark">` in the HTML source; `applyDarkMode()`
+  defaults `isDark = true` unless a user has an explicit stored `'0'` preference).
+- Structural chrome — the 3 main panel headers (Synapse AI Chat / Patient Information / Generated
+  Output), the top `.hdr` bar, modals, the sidebar, the splash screen — is monochrome black/grey.
+- Brand colour (cyan `#06c5d9` → teal `#06d6a0`, sometimes → blue `#1a56db`) is kept on: the 3 copies
+  of the orbital logo SVG (splash/login/header), the `.btn-synapse` animated gradient, and everywhere
+  driven by the `--accent`/`--accent2` CSS variables (buttons, links, focus rings, badges). New
+  `--accent-rgb`/`--accent2-rgb` variables (unitless triples) let `rgba(var(--accent-rgb),X)` drive
+  translucent accent glows/badges without hardcoding a colour per element.
+- Tab 1's 3-dot "thinking" indicator (`addTyping()`) is now the thinking-orbs `globe` icon; a
+  `removeTyping()` helper stops the orb's RAF loop before removing the element (3 call sites fixed).
+- **Bug fix:** `doLogout()` had a leftover `document.body.classList.remove('dark')` from when dark
+  mode was opt-in — this made the login page fall back to a stale hardcoded navy card colour after
+  every sign-out. Removed.
+- **Bug fix:** several elements used hardcoded navy (`rgba(13,31,66,...)` / `rgba(9,17,48,...)`,
+  the old `--primary` colour in disguise) instead of a theme variable — most visibly the sidebar
+  backdrop (`.sb-overlay`) and the generic modal backdrop (`.overlay`), which tinted the whole
+  screen navy-blue whenever the sidebar or any modal was open. Converted to neutral black.
+- Tool-internal colour-coding was deliberately left alone (it's clinical/informational, not brand
+  decoration): drug tag system (`.tag.blue/.green`), ABG verdict colours, developmental-milestones
+  domain headers, IO calculator intake/output colours, NIP vaccine-schedule colours, ACLS/RR/BP-centile
+  tier colours — same protection as `--danger`/`--warning`.
+
+**Versioning:** This folder is a local git repo (`git log` for history, no remote). Two tags mark
+this round's before/after:
+- `instance-1` — the original navy/cyan/teal/purple colour theme, light-mode default (state before
+  this session's redesign). Restore with `git checkout instance-1 -- synapse.html`.
+- `instance-2` — the new default-dark OLED theme with monochrome chrome + cyan/teal accent (current
+  state, also HEAD on `main`).
+
+**Known follow-up, not yet done:** a full structural/UX declutter pass (spacing, density, information
+hierarchy) is planned next — see task notes for that in the active session. Not a colour change,
+a layout/IA pass.
+
+---
+
+## Prior session: Paediatric Tools Sync (2026-06-29)
 **Session goal:** Update all Paediatric Tools in Synapse AI to match PaedsCare Clinical Suite.
 
 ---
@@ -7,8 +51,9 @@
 ## Files
 | File | Path |
 |------|------|
-| Synapse AI | `C:\Users\PC\Desktop\Synapse AI\synapse.html` (17,671 lines) |
-| PaedsCare | `C:\Users\PC\Desktop\PaedsCare Clinical Suite\paedscare.html` (6,928 lines) |
+| Synapse AI (Mac, active) | `/Users/admin/Downloads/Synapse AI/synapse.html` |
+| Synapse AI (Windows) | `C:\Users\PC\Desktop\Synapse AI\synapse.html` |
+| PaedsCare | `C:\Users\PC\Desktop\PaedsCare Clinical Suite\paedscare.html` |
 
 ---
 
