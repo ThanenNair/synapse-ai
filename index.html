@@ -34,6 +34,10 @@
   --grad-synapse: linear-gradient(135deg,#f4f4f5 0%,#e4e4e7 100%);
   --ease: cubic-bezier(.4,0,.2,1);
   --spring: cubic-bezier(.34,1.56,.64,1);
+  --rail-w: 0px; /* live width of the side rail — 0 collapsed, 284px expanded.
+                    Full-screen tool/app content reads this as its left offset
+                    so opening the rail pushes content over instead of
+                    overlapping it. Critical alerts/modals ignore it on purpose. */
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(--text);background:var(--bg);}
@@ -148,10 +152,10 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 
 /* ─── APP SHELL ──────────────────────────────────── */
 #app{
-  position:fixed;inset:0;
+  position:fixed;top:0;right:0;bottom:0;left:var(--rail-w,0px);
   display:flex;flex-direction:row;
   opacity:0;
-  transition:opacity .6s var(--ease);
+  transition:opacity .6s var(--ease), left .22s var(--ease);
 }
 #app.visible{opacity:1;}
 
@@ -1068,7 +1072,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 
 /* ─── CPG LIBRARY OVERLAY ───────────────────────── */
 #cpgLibrary{
-  position:fixed;top:0;left:0;right:0;bottom:0;z-index:400;
+  position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;z-index:400;transition:left .22s var(--ease);
   background:var(--bg);
   display:none;flex-direction:column;
   animation:slideUpIn .28s var(--ease);
@@ -1208,7 +1212,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 
 /* ─── REFERRAL LETTER OVERLAY ────────────────────── */
 #refLetterOverlay{
-  position:fixed;top:0;left:0;right:0;bottom:0;z-index:400;
+  position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;z-index:400;transition:left .22s var(--ease);
   background:var(--bg);
   display:none;flex-direction:column;
   animation:slideUpIn .28s var(--ease);
@@ -1521,9 +1525,10 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 
 /* ─── MDCALC OVERLAY ────────────────────────────── */
 #mdCalcOverlay{
-  position:fixed;top:0;left:0;right:0;bottom:0;z-index:400;
+  position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;z-index:400;
   background:var(--bg);display:none;flex-direction:column;
   animation:slideUpIn .28s var(--ease);
+  transition:left .22s var(--ease);
 }
 .mdc-hdr{
   background:var(--grad-primary);padding:.8rem 1.4rem;
@@ -1893,7 +1898,7 @@ body.dark .iv-weight-inp{background:var(--bg);color:var(--text);}
 body.dark .iv-drug-inp{background:var(--bg);color:var(--text);}
 
 /* ── DRUG REFERENCE ── */
-#drugRefOverlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:400;display:none;flex-direction:column;background:var(--bg);animation:slideUpIn .28s var(--ease) both;}
+#drugRefOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;z-index:400;display:none;flex-direction:column;background:var(--bg);animation:slideUpIn .28s var(--ease) both;transition:left .22s var(--ease);}
 .dr-hdr{display:flex;align-items:center;gap:.7rem;padding:.9rem 1rem;background:var(--grad-primary);border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;}
 .dr-hdr-info{flex:1;min-width:0;}
 .dr-title{font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:-.01em;}
@@ -1977,7 +1982,7 @@ body.dark .dr-tier-badge.tier-paeds{color:#c4b5fd;}
 .dr-diag-src{font-size:.65rem;color:var(--text-muted);font-style:italic;text-align:right;margin-top:.5rem;}
 
 /* ── ABG INTERPRETER ── */
-#abgOverlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:400;display:none;flex-direction:column;background:var(--bg);animation:slideUpIn .28s var(--ease) both;}
+#abgOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;z-index:400;display:none;flex-direction:column;background:var(--bg);animation:slideUpIn .28s var(--ease) both;transition:left .22s var(--ease);}
 .abg-hdr{display:flex;align-items:center;gap:.7rem;padding:.9rem 1rem;background:var(--grad-primary);border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;}
 .abg-hdr-info{flex:1;min-width:0;}
 .abg-title{font-size:1.05rem;font-weight:700;color:#fff;}
@@ -2071,7 +2076,7 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
 #ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,
-#nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;}
+#nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .tool-ovl-hdr{background:var(--grad-primary);color:#fff;padding:.85rem 1.2rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .tool-ovl-icon{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .tool-ovl-icon svg{width:18px;height:18px;display:block;stroke:rgba(255,255,255,.88);fill:none;}
@@ -2283,7 +2288,7 @@ body.dark .nnj-pl-tbl .ga-hdr{background:#1e293b;color:#e2e8f0;}
 .nnj-pl-btn{width:100%;margin-top:.85rem;background:transparent;border:1.5px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:.75rem;font-weight:600;font-family:'Roboto',sans-serif;padding:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.45rem;transition:background .15s,color .15s;}
 .nnj-pl-btn:hover{background:var(--bg);color:var(--text);}
 /* NNJ Photo level modal */
-.nnj-pl-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:200;display:none;flex-direction:column;}
+.nnj-pl-modal{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);z-index:200;display:none;flex-direction:column;transition:left .22s var(--ease);}
 .nnj-pl-modal-hdr{background:var(--grad-primary);color:#fff;padding:.75rem 1.1rem;display:flex;align-items:center;gap:.7rem;flex-shrink:0;}
 .nnj-pl-modal-back{background:rgba(255,255,255,.14);border:none;color:#fff;cursor:pointer;width:36px;height:36px;border-radius:8px;font-size:.95rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
 .nnj-pl-modal-back:hover{background:rgba(255,255,255,.26);}
@@ -2395,7 +2400,7 @@ body.dark .pfluid-hs-row.total{color:var(--text);}
 .sed-empty svg{display:block;margin:0 auto .8rem;opacity:.3;}
 
 /* ─── ANTIBIOTIC STEWARDSHIP TOOL ───────────────────── */
-#abxOverlay,#ioCalcOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;}
+#abxOverlay,#ioCalcOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .abx-layout{display:grid;grid-template-columns:300px 1fr;height:100%;overflow:hidden;}
 .abx-left{overflow-y:auto;padding:1rem 1.1rem;border-right:1.5px solid var(--border);display:flex;flex-direction:column;gap:.9rem;}
 .abx-right{overflow-y:auto;padding:1.1rem 1.25rem;}
@@ -2623,7 +2628,7 @@ body.dark .devms-next{background:var(--bg2);}
 .proc-result-actions{display:flex;gap:.5rem;margin-top:.65rem;flex-wrap:wrap;}
 .proc-action-btn{background:var(--bg2);border:1.5px solid var(--border);border-radius:7px;padding:.32rem .65rem;font-size:.72rem;font-weight:600;cursor:pointer;color:var(--text);font-family:'Roboto',sans-serif;transition:background .15s, border-color .15s, color .15s;}
 /* ─── Procedure Tutorial ────────────────────────── */
-#procTutorialOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;}
+#procTutorialOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .ptut-layout{display:grid;grid-template-columns:255px 1fr;height:100%;overflow:hidden;}
 .ptut-sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--card);}
 .ptut-search{padding:.55rem .75rem;border:none;border-bottom:1px solid var(--border);background:var(--bg2);font-size:.78rem;color:var(--text);outline:none;width:100%;box-sizing:border-box;font-family:'Roboto',sans-serif;}
@@ -2671,7 +2676,7 @@ body.dark .devms-next{background:var(--bg2);}
 .proc-action-btn:hover{border-color:var(--accent);color:var(--accent);}
 
 /* ─── ACLS Algorithm Navigator ───────────────────────────── */
-#aclsOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;}
+#aclsOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .acls-hdr{background:var(--grad-primary);color:#fff;padding:.75rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .acls-hdr-titles{flex:1;}
 .acls-hdr-title{font-family:'Roboto',sans-serif;font-weight:700;font-size:1.05rem;}
@@ -2731,7 +2736,7 @@ body.dark .devms-next{background:var(--bg2);}
 .acls-note-box-text{font-size:.72rem;color:#9a3412;line-height:1.65;}
 
 /* ─── IV Drug Compatibility Checker ──────────────────────── */
-#ivCompatOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;}
+#ivCompatOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .ivcompat-hdr{background:var(--grad-primary);color:#fff;padding:.75rem 1.25rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .ivcompat-hdr-titles{flex:1;}
 .ivcompat-hdr-title{font-family:'Roboto',sans-serif;font-weight:700;font-size:1.05rem;}
@@ -5784,11 +5789,13 @@ function showApp(showWelcome = false) {
   sbLoadPins();
   sbRenderTools();
   renderSidebar();
-  // Rail starts collapsed by default (markup already has .collapsed) —
-  // only remove it if this user explicitly chose to keep it expanded before.
+  // Rail starts collapsed by default (markup already has .collapsed, and
+  // --rail-w already defaults to 0px in :root) — only remove it if this
+  // user explicitly chose to keep it expanded before.
   if (S.currentUser && localStorage.getItem(ukey('rail_collapsed')) === '0') {
     const rail = document.getElementById('sidebar');
     if (rail) rail.classList.remove('collapsed');
+    _setRailWidth(false);
   }
   updateApiStatus();
   // Set header user badge
@@ -16841,12 +16848,20 @@ function closeSidebar() {
   if (rail && !rail.classList.contains('collapsed')) toggleSideRail();
 }
 
+const RAIL_WIDTH_PX = 284;
+// --rail-w drives the `left` offset of #app and every full-screen tool
+// overlay (see :root and the overlay CSS rules) — updating it here is what
+// makes opening the rail push those screens over instead of covering them.
+function _setRailWidth(collapsed) {
+  document.documentElement.style.setProperty('--rail-w', collapsed ? '0px' : RAIL_WIDTH_PX + 'px');
+}
 function toggleSideRail() {
   const rail = document.getElementById('sidebar');
   const expandBtn = document.getElementById('srExpandBtn');
   if (!rail) return;
   const collapsed = rail.classList.toggle('collapsed');
   if (expandBtn) expandBtn.style.display = collapsed ? 'flex' : 'none';
+  _setRailWidth(collapsed);
   if (S.currentUser) localStorage.setItem(ukey('rail_collapsed'), collapsed ? '1' : '0');
   _fixLayoutRAF();
 }
