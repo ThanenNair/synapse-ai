@@ -1,6 +1,49 @@
 # Handoff: Synapse AI
 
-## Latest session — Dark theme redesign (2026-07-24)
+## Latest session — Persistent side-rail redesign (2026-07-24, same day, later)
+
+**Goal:** User asked for a full redesign of the app shell — "the homescreen, the layout, the
+sidebar placement, the sidebar arrangement, everything" — inspired by modern SaaS dashboards
+(Notion/Linear-style persistent nav). Git tag `instance-3` marks the state immediately before
+this pass (identical content to `instance-2`, see below).
+
+**What changed:**
+- The old top `.hdr` bar + hamburger-triggered slide-over `.sidebar` overlay is gone. `#app` is
+  now a row flexbox: a **persistent** left sidebar (`.sidebar`, 284px) + the 3-panel workspace
+  (`.tabs`, flex:1) — no separate header bar above them.
+- Sidebar contents, top to bottom: brand + collapse-toggle chevron, "New Session", a Tools/History
+  tab switch (`sbSwitchCol('tools'|'hist')` — replaces the old side-by-side two-column layout,
+  which needed ~580px and no longer fits a normal rail width), the tool list or session history
+  (whichever tab is active), then a footer with Dark Mode/Settings buttons and an account block
+  (date, connection status, user avatar/name, sign-out icon button).
+- Collapse/expand via `toggleSideRail()` — shrinks the rail to `width:0` with a small floating
+  re-expand chevron (`#srExpandBtn`); the collapsed/expanded state persists per-user in
+  localStorage (`ukey('rail_collapsed')`) and is restored on next login.
+- `openSidebar()`/`closeSidebar()` are now no-op stubs — kept only so their ~10 existing call
+  sites (tool-list clicks, new-session, settings) don't throw; the rail no longer opens/closes on
+  navigation the way the old overlay did.
+- `sbRenderTools()`/`renderSidebar()` (tool list + session list rendering) now run once at login
+  (`showApp()`), since opening the sidebar used to be the only trigger for the first render and
+  the sidebar is now always visible.
+- `fixLayout()` no longer reads a `.hdr` element's height (it doesn't exist anymore).
+- **Regression caught and fixed:** all full-screen tool overlays (Drug Reference, CPG Library,
+  MDCalc, ABG, Referral Letter, every NICU/paeds tool overlay — 11 CSS rules total) had
+  `top:56px` reserving space for the old header bar. With the header gone this left a gap at the
+  top exposing the sidebar/panels underneath whenever a tool was open. Changed to `top:0`.
+- Verified via `getBoundingClientRect()` (not just screenshots — the Browser-pane screenshot tool
+  has an intermittent scaling/crop artifact at some viewport sizes, unrelated to the app itself;
+  don't trust a screenshot that looks "letterboxed" without confirming via JS measurement first)
+  that the app shell, sidebar, and overlays all size correctly across viewport widths, in both
+  light and dark mode, with the rail both expanded and collapsed.
+
+**Not done / out of scope for this pass:** the internal design of the 33+ individual tool overlays
+(Drug Reference, MDCalc, NICU/paeds tools, etc.) was not touched — they inherit the shared card/
+button/input styling but weren't individually redesigned. If a specific tool still looks dated,
+target it directly rather than re-sweeping everything.
+
+---
+
+## Prior session — Dark theme redesign (2026-07-24)
 
 **Goal:** Default the app to a true OLED-black dark theme, strip decorative blue/purple/teal
 colour from structural chrome, but keep the cyan/teal brand accent on the logo and primary
