@@ -27,7 +27,7 @@
   --shadow: rgba(0,0,0,0.13);
   --danger: #ef4444;
   --warning: #f59e0b;
-  --grad-primary: linear-gradient(135deg,#111111 0%,#2e2e2e 100%);
+  --grad-primary: #242424;
   --batik-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.08' stroke-width='1.1'%3E%3Ccircle cx='60' cy='42' r='20'/%3E%3Ccircle cx='60' cy='78' r='20'/%3E%3Ccircle cx='42' cy='60' r='20'/%3E%3Ccircle cx='78' cy='60' r='20'/%3E%3C/g%3E%3Ccircle cx='60' cy='60' r='2.4' fill='%23ffffff' fill-opacity='0.12'/%3E%3C/svg%3E") repeat;
   --grad-accent: linear-gradient(135deg,#06c5d9 0%,#06d6a0 100%);
   --grad-entry: linear-gradient(135deg,#f4f4f5 0%,#e4e4e7 100%);
@@ -1286,21 +1286,24 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
   gap:.65rem;padding:3rem;color:var(--text-muted);font-size:.85rem;font-style:italic;font-family:'Roboto',sans-serif;
 }
 
-/* ─── PERSISTENT SIDE RAIL ───────────────────────── */
+/* ─── GLOBAL SIDE RAIL ───────────────────────────────
+   Lives at the body level (outside #app and every tool overlay), so it
+   floats above ANY screen — the dashboard, or any tool/drug reference. */
 .sidebar{
-  position:relative;flex-shrink:0;z-index:20;
+  position:fixed;top:0;left:0;bottom:0;z-index:1000;flex-shrink:0;
   width:284px;background:#fff;
   display:flex;flex-direction:column;
-  box-shadow:2px 0 24px rgba(0,0,0,.12);
+  box-shadow:2px 0 24px rgba(0,0,0,.35);
   border-right:1px solid var(--border);
   transition:width .22s var(--ease), opacity .18s var(--ease);
   overflow:hidden;
 }
 .sidebar.collapsed{width:0;border-right:none;box-shadow:none;opacity:0;pointer-events:none;}
 /* Full-height edge trigger — invisible until the mouse nears the left
-   edge, then reveals a vertical "SIDEBAR" tab. Click to expand the rail. */
+   edge, then reveals a vertical "SIDEBAR" tab. Click to expand the rail.
+   Same z-index tier as .sidebar so it floats above every tool overlay too. */
 .sr-edge-trigger{
-  position:absolute;top:0;left:0;bottom:0;z-index:25;
+  position:fixed;top:0;left:0;bottom:0;z-index:999;
   width:10px;padding:0;
   background:rgba(255,255,255,.02);
   border:none;border-right:1px solid transparent;
@@ -1755,8 +1758,8 @@ body.dark{
   --shadow:rgba(0,0,0,.6);
   --accent:#06c5d9;--accent2:#06d6a0;
   --accent-rgb:6,197,217;--accent2-rgb:6,214,160;
-  --grad-entry:linear-gradient(135deg,#161616 0%,#1e1e1e 100%);
-  --grad-synapse:linear-gradient(135deg,#141414 0%,#1c1c1c 100%);
+  --grad-entry:#242424;
+  --grad-synapse:#242424;
 }
 body.dark .ctx-banner{background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.1));color:var(--accent2);border-bottom-color:var(--border);}
 body.dark .msg.ai .msg-bub{background:var(--card);border-color:var(--border);}
@@ -1975,7 +1978,7 @@ body.dark .dr-tier-badge.tier-paeds{color:#c4b5fd;}
 
 /* ── ABG INTERPRETER ── */
 #abgOverlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:400;display:none;flex-direction:column;background:var(--bg);animation:slideUpIn .28s var(--ease) both;}
-.abg-hdr{display:flex;align-items:center;gap:.7rem;padding:.9rem 1rem;background:linear-gradient(135deg,#111111 0%,#2e2e2e 100%);border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;}
+.abg-hdr{display:flex;align-items:center;gap:.7rem;padding:.9rem 1rem;background:var(--grad-primary);border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;}
 .abg-hdr-info{flex:1;min-width:0;}
 .abg-title{font-size:1.05rem;font-weight:700;color:#fff;}
 .abg-sub{font-size:.72rem;color:rgba(255,255,255,.55);margin-top:.1rem;}
@@ -2925,9 +2928,9 @@ body.dark #app::before{
   background:linear-gradient(90deg,transparent 4%,var(--ph-glow,rgba(var(--accent-rgb),.85)) 50%,transparent 96%);
   pointer-events:none;
 }
-.tabs > .panel:nth-child(1) .panel-hdr{background:linear-gradient(135deg,#0a0a0a 0%,#222222 55%,#3a3a3a 135%);--ph-glow:rgba(255,255,255,.25);}
-.tabs > .panel:nth-child(2) .panel-hdr{background:linear-gradient(135deg,#0a0a0a 0%,#222222 55%,#3a3a3a 135%);--ph-glow:rgba(255,255,255,.25);}
-.tabs > .panel:nth-child(3) .panel-hdr{background:linear-gradient(135deg,#0a0a0a 0%,#222222 55%,#3a3a3a 135%);--ph-glow:rgba(255,255,255,.25);}
+.tabs > .panel:nth-child(1) .panel-hdr{background:#242424;--ph-glow:rgba(255,255,255,.25);}
+.tabs > .panel:nth-child(2) .panel-hdr{background:#242424;--ph-glow:rgba(255,255,255,.25);}
+.tabs > .panel:nth-child(3) .panel-hdr{background:#242424;--ph-glow:rgba(255,255,255,.25);}
 .panel-icon{
   border-radius:11px;
   background:rgba(255,255,255,.16);
@@ -3145,11 +3148,11 @@ body.dark #app::before{
 </div>
 
 <!-- ══════════ APP ══════════ -->
-<div id="app" style="display:none">
-
-  <!-- PERSISTENT SIDE RAIL (nav + tools + session history + account) -->
-  <div class="sidebar" id="sidebar">
-    <div class="sb-hdr">
+<!-- GLOBAL SIDE RAIL — lives outside #app (and every tool overlay) so it can
+     float above ANY screen: the dashboard, or any tool/drug overlay. Shown/
+     hidden together with #app by showApp()/doLogout(); starts collapsed. -->
+<div class="sidebar collapsed" id="sidebar" style="display:none">
+  <div class="sb-hdr">
       <div class="sb-hdr-top">
         <div class="sb-hdr-brand">
           <svg width="26" height="26" viewBox="0 0 110 110" fill="none">
@@ -3236,10 +3239,12 @@ body.dark #app::before{
   <!-- Rail re-expand edge trigger: full-height hover zone at the left edge,
        shown only while the rail is collapsed. Invisible until the mouse
        nears the edge, then reveals a vertical "SIDEBAR" tab. -->
-  <button class="sr-edge-trigger" id="srExpandBtn" onclick="toggleSideRail()" title="Expand sidebar" style="display:none;">
+  <button class="sr-edge-trigger" id="srExpandBtn" onclick="toggleSideRail()" title="Expand sidebar">
     <span class="sr-edge-trigger-label">SIDEBAR</span>
     <svg class="sr-edge-trigger-icon" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
   </button>
+
+<div id="app" style="display:none">
 
 <!-- ══════════ CPG LIBRARY ══════════ -->
 <div id="cpgLibrary">
@@ -4571,7 +4576,7 @@ body.dark #app::before{
       <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
     </div>
     <div class="tool-ovl-body">
-      <div class="paeds-tabs" style="flex-wrap:wrap;">
+      <div class="paeds-tabs" id="paedsMainTabs" style="flex-wrap:wrap;display:none;">
         <button class="paeds-tab-btn active" onclick="paedsSwitchTab('reminder',this)">⏰ Patient Review Reminder</button>
         <button class="paeds-tab-btn" onclick="paedsSwitchTab('emergency',this)">🚨 Emergency Drugs</button>
         <button class="paeds-tab-btn" onclick="paedsSwitchTab('nip',this)">💉 Immunisation (NIP)</button>
@@ -5756,6 +5761,12 @@ function showApp(showWelcome = false) {
   document.getElementById('login-page').style.display = 'none';
   const _appEl = document.getElementById('app');
   _appEl.style.display = 'flex';
+  // Sidebar + edge trigger live outside #app so they can float above every
+  // tool overlay too — show them together with #app.
+  const _railEl = document.getElementById('sidebar');
+  const _edgeEl = document.getElementById('srExpandBtn');
+  if (_railEl) _railEl.style.display = 'flex';
+  if (_edgeEl) _edgeEl.style.display = 'flex';
   // Trigger fade-in after paint frame (matches PaedsCare #app.visible pattern)
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ _appEl.classList.add('visible'); }); });
 
@@ -5773,11 +5784,11 @@ function showApp(showWelcome = false) {
   sbLoadPins();
   sbRenderTools();
   renderSidebar();
-  if (S.currentUser && localStorage.getItem(ukey('rail_collapsed')) === '1') {
+  // Rail starts collapsed by default (markup already has .collapsed) —
+  // only remove it if this user explicitly chose to keep it expanded before.
+  if (S.currentUser && localStorage.getItem(ukey('rail_collapsed')) === '0') {
     const rail = document.getElementById('sidebar');
-    const expandBtn = document.getElementById('srExpandBtn');
-    if (rail) rail.classList.add('collapsed');
-    if (expandBtn) expandBtn.style.display = 'flex';
+    if (rail) rail.classList.remove('collapsed');
   }
   updateApiStatus();
   // Set header user badge
@@ -16448,6 +16459,10 @@ async function doLogout() {
   document.getElementById('regErr').classList.remove('on');
   showLogin();
   document.getElementById('app').style.display = 'none';
+  const _railEl2 = document.getElementById('sidebar');
+  const _edgeEl2 = document.getElementById('srExpandBtn');
+  if (_railEl2) _railEl2.style.display = 'none';
+  if (_edgeEl2) _edgeEl2.style.display = 'none';
   const lp = document.getElementById('login-page');
   lp.style.display = 'flex';
   const lw = document.getElementById('loginLogoWrap');
@@ -16814,8 +16829,17 @@ function sbRenderTools() {
 
 // ─── SIDE RAIL (persistent nav — was a slide-over overlay, kept as no-ops
 // below for old call sites since the rail no longer opens/closes on navigation) ──
-function openSidebar() {}
-function closeSidebar() {}
+// The rail is an overlay everywhere now (floats above the dashboard AND
+// every tool overlay) — open/close it explicitly rather than toggling,
+// since callers don't know its current state.
+function openSidebar() {
+  const rail = document.getElementById('sidebar');
+  if (rail && rail.classList.contains('collapsed')) toggleSideRail();
+}
+function closeSidebar() {
+  const rail = document.getElementById('sidebar');
+  if (rail && !rail.classList.contains('collapsed')) toggleSideRail();
+}
 
 function toggleSideRail() {
   const rail = document.getElementById('sidebar');
