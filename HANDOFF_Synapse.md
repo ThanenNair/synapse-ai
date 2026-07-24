@@ -1,5 +1,13 @@
 # Handoff: Synapse AI
 
+## 🚀 Live deployment
+**https://thanennair.github.io/synapse-ai/** — free, hosted on GitHub Pages, deploys from the
+`main` branch root on every push. The working file is now `index.html` (renamed from
+`synapse.html` so it serves at the clean root URL). To update the live site: edit `index.html`,
+commit, `git push` — it's live again within about a minute, no manual rebuild step. Repo is
+public (required for free Pages on a personal GitHub account); no secrets are stored in it — the
+OpenRouter key and login accounts are per-browser localStorage only.
+
 ## Latest session — Persistent side-rail redesign (2026-07-24, same day, later)
 
 **Goal:** User asked for a full redesign of the app shell — "the homescreen, the layout, the
