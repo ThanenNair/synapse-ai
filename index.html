@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Synapse AI — Clinical Intelligence Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root {
   /* Monochrome black/white/grey palette — no blue anywhere, matching the
@@ -5554,12 +5555,24 @@ const IMAGING_FIELD_CONFIG = {
   img_other: { multiple: false, video: false },
 };
 
+// ─── SUPABASE (cross-device accounts + data sync) ──
+const SUPABASE_URL = 'https://lyurhgtwqrjutpiyndvo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_d2btZgo8tj3cEIIrJwqNmA_6k9FMD_Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Usernames are the only thing the UI ever shows; Supabase Auth needs an
+// email shape under the hood, so we map username -> a fake, never-emailed address.
+function synthEmail(username) {
+  const safe = username.toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+  return safe + '@synapse.users.local';
+}
+
 const S = {
   apiKey: '',
   model: 'openai/gpt-5.1',
   chat: [],
   hasPatient: false,
   currentUser: null,
+  supaUserId: null,
   sessionId: null,
   attachments: [],            // chat clips: [{ dataUrl, mimeType, name }, …]
   imagingAttachments: {},     // { img_ecg: [{dataUrl, name, kind:'image'|'video'}, …], ... }
@@ -5628,6 +5641,11 @@ function initApp() {
         // Already logged in — fade splash out (PaedsCare-style), then reveal app
         clearTimeout(_safetyTimer);
         S.currentUser = autoUser;
+        // Supabase persists its own session across reloads; re-attach our
+        // user id from it so syncPush()/syncPull() keep working post-refresh.
+        sb.auth.getSession().then(({ data }) => {
+          if (data && data.session) { S.supaUserId = data.session.user.id; _startAutoSync(); }
+        });
         splash.style.opacity   = '0';
         splash.style.transform = 'scale(1.04)';
         setTimeout(function() {
@@ -16332,13 +16350,47 @@ function applyDarkMode() {
 function ukey(k) { return `sai_u_${S.currentUser}_${k}`; }
 
 // ─── AUTH ──────────────────────────────────────────
-async function hashPwd(pwd) {
-  const buf = await crypto.subtle.digest('SHA-256',
-    new TextEncoder().encode(pwd + '_synapse_v1'));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+// ─── CLOUD SYNC (Supabase) ──────────────────────────
+// The whole per-user localStorage namespace (everything under sai_u_<user>_*)
+// is mirrored to one row in user_storage as an opaque JSON blob. Pulled on
+// login, pushed on logout / periodically / on tab hide. Keeps every existing
+// localStorage read/write in the rest of the app completely unchanged.
+function _collectLocalData() {
+  const prefix = `sai_u_${S.currentUser}_`;
+  const blob = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(prefix)) blob[k] = localStorage.getItem(k);
+  }
+  return blob;
 }
-function getUsers() { return JSON.parse(localStorage.getItem('sai_users') || '{}'); }
-function saveUsers(u) { localStorage.setItem('sai_users', JSON.stringify(u)); }
+async function syncPush() {
+  if (!S.currentUser || !S.supaUserId) return;
+  try {
+    await sb.from('user_storage').upsert({
+      user_id: S.supaUserId, data: _collectLocalData(), updated_at: new Date().toISOString()
+    });
+  } catch(e) { console.warn('syncPush failed', e); }
+}
+async function syncPull() {
+  if (!S.supaUserId) return;
+  try {
+    const { data, error } = await sb.from('user_storage').select('data').eq('user_id', S.supaUserId).maybeSingle();
+    if (error || !data || !data.data) return;
+    Object.keys(data.data).forEach(k => localStorage.setItem(k, data.data[k]));
+  } catch(e) { console.warn('syncPull failed', e); }
+}
+let _syncInterval = null;
+function _syncOnHide() { if (document.visibilityState === 'hidden') syncPush(); }
+function _startAutoSync() {
+  _stopAutoSync();
+  _syncInterval = setInterval(syncPush, 45000);
+  document.addEventListener('visibilitychange', _syncOnHide);
+}
+function _stopAutoSync() {
+  if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
+  document.removeEventListener('visibilitychange', _syncOnHide);
+}
 
 async function doLogin() {
   const user = document.getElementById('loginUser').value.trim();
@@ -16346,12 +16398,13 @@ async function doLogin() {
   const err  = document.getElementById('loginErr');
   err.classList.remove('on');
   if (!user || !pass) { err.textContent='Please enter username and password.'; err.classList.add('on'); return; }
-  const users = getUsers();
-  if (!users[user]) { err.textContent='Username not found.'; err.classList.add('on'); return; }
-  const hash = await hashPwd(pass);
-  if (users[user].passwordHash !== hash) { err.textContent='Incorrect password.'; err.classList.add('on'); return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email: synthEmail(user), password: pass });
+  if (error) { err.textContent='Incorrect username or password.'; err.classList.add('on'); return; }
   S.currentUser = user;
+  S.supaUserId = data.user.id;
   sessionStorage.setItem('sai_session', JSON.stringify({ username: user }));
+  await syncPull();
+  _startAutoSync();
   showApp(true);
 }
 
@@ -16363,21 +16416,29 @@ async function doRegister() {
   err.classList.remove('on');
   if (!user || !pass || !confirm) { err.textContent='Please fill in all fields.'; err.classList.add('on'); return; }
   if (user.length < 3) { err.textContent='Username must be at least 3 characters.'; err.classList.add('on'); return; }
+  if (!/^[a-zA-Z0-9_.-]+$/.test(user)) { err.textContent='Username can only contain letters, numbers, . _ -'; err.classList.add('on'); return; }
   if (pass.length < 6) { err.textContent='Password must be at least 6 characters.'; err.classList.add('on'); return; }
   if (pass !== confirm) { err.textContent='Passwords do not match.'; err.classList.add('on'); return; }
-  const users = getUsers();
-  if (users[user]) { err.textContent='Username already taken.'; err.classList.add('on'); return; }
-  users[user] = { passwordHash: await hashPwd(pass), createdAt: Date.now() };
-  saveUsers(users);
+  const { data, error } = await sb.auth.signUp({ email: synthEmail(user), password: pass });
+  if (error) {
+    err.textContent = /already registered|already exists|user_repeated_signup/i.test(error.message) ? 'Username already taken.' : error.message;
+    err.classList.add('on');
+    return;
+  }
   S.currentUser = user;
+  S.supaUserId = data.user.id;
   sessionStorage.setItem('sai_session', JSON.stringify({ username: user }));
+  _startAutoSync();
   showApp(true);
 }
 
-function doLogout() {
+async function doLogout() {
   saveCurrentSession();
+  await syncPush(); // final push before this device loses its user context
+  _stopAutoSync();
+  sb.auth.signOut();
   sessionStorage.removeItem('sai_session');
-  S.currentUser = null; S.sessionId = null; S.chat = []; S.apiKey = '';
+  S.currentUser = null; S.supaUserId = null; S.sessionId = null; S.chat = []; S.apiKey = '';
   closeSidebar();
   // Reset login form
   ['loginUser','loginPass','regUser','regPass','regConfirm'].forEach(id => {
