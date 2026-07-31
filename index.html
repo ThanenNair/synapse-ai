@@ -883,7 +883,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 }
 @keyframes synapseGlow{
   0%,100%{box-shadow:0 2px 8px rgba(var(--accent-rgb),.3);}
-  50%    {box-shadow:0 3px 20px rgba(var(--accent-rgb),.6),0 0 32px rgba(6,214,160,.28);}
+  50%    {box-shadow:0 3px 20px rgba(var(--accent-rgb),.6),0 0 32px rgba(var(--accent2-rgb),.28);}
 }
 @keyframes synapseWave{
   0%  {transform:translateX(-130%) skewX(-12deg);}
@@ -1775,13 +1775,14 @@ body.dark .mdc-result-score{color:var(--text);}
 
 /* ─── DARK MODE OVERRIDES ────────────────────────── */
 body.dark{
-  /* True OLED-black/grey surfaces — cyan/teal brand accent is kept for
-     buttons, links, focus states and the logo, layered on this neutral base. */
-  --bg:#050505;--bg2:#0d0d0d;--card:#131313;
-  --text:#f2f2f2;--text-muted:#989898;--border:#262626;
+  /* "Indigo Night" — cool indigo-charcoal surfaces, indigo→violet brand accent
+     kept for buttons, links, focus states and badges, layered on this neutral base. */
+  --bg:#0d0e14;--bg2:#14151d;--card:#1a1c26;
+  --text:#eeeef4;--text-muted:#93939f;--border:#2a2c38;
   --shadow:rgba(0,0,0,.6);
-  --accent:#06c5d9;--accent2:#06d6a0;
-  --accent-rgb:6,197,217;--accent2-rgb:6,214,160;
+  --accent:#7c8cf8;--accent2:#c084fc;
+  --accent-rgb:124,140,248;--accent2-rgb:192,132,252;
+  --grad-accent: linear-gradient(135deg,#7c8cf8 0%,#c084fc 100%);
   --grad-entry:#242424;
   --grad-synapse:#242424;
 }
@@ -1836,6 +1837,8 @@ body.dark{--primary:#f5f5f5;--secondary:#c4c4c4;}
 body.dark .login-card{background:var(--card);}
 body.dark .login-title{color:var(--text);}
 body.dark .login-err{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:#f87171;}
+body.dark .login-submit{background:var(--grad-accent);}
+body.dark .btn-synapse{background:linear-gradient(90deg,#6366f1,#7c8cf8,#c084fc,#7c8cf8,#6366f1);background-size:280% 100%;}
 
 /* ─── DARK MODE: shared error / warning boxes ────────── */
 body.dark .hov-rm-btn:hover{background:rgba(239,68,68,.18);color:#f87171;}
