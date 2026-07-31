@@ -75,11 +75,19 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
   will-change:transform,opacity;
 }
 
-.sp-orb{
-  margin-top:2.2rem;height:40px;display:flex;align-items:center;justify-content:center;
+.sp-bar{
+  width:200px;height:3px;background:rgba(255,255,255,.15);border-radius:99px;
+  margin-top:2.2rem;overflow:hidden;
   animation:spUp .4s var(--ease) 1.4s both;
   will-change:transform,opacity;
 }
+.sp-bar-fill{
+  width:100%;height:100%;border-radius:99px;
+  background:var(--grad-accent);
+  transform:scaleX(0);transform-origin:left center;
+  animation:spBarFill 1.6s var(--ease) 1.6s forwards;
+}
+@keyframes spBarFill{to{transform:scaleX(1);}}
 
 @keyframes spUp  {from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 
@@ -3029,7 +3037,7 @@ body.dark #app::before{
   </div>
   <div class="sp-name">Synapse <em>AI</em></div>
   <div class="sp-tag">Clinical Intelligence Platform</div>
-  <div class="sp-orb" id="spOrb"></div>
+  <div class="sp-bar" id="spBar"><div class="sp-bar-fill" id="spBarFill"></div></div>
 </div>
 
 <!-- ══════════ API MODAL ══════════ -->
@@ -5303,209 +5311,6 @@ body.dark #app::before{
 
 <script>
 
-// ─── THINKING ORBS — dotted 3D canvas loading indicators ───────────
-// Adapted (MIT licensed) from "thinking-orbs" by Jakub Antalik & Alex
-// Brinza — https://github.com/Jakubantalik/thinking-orbs — a plain-2D-canvas
-// dotted sphere, honestly 3D (rotated, depth-shaded, z-sorted), no WebGL
-// and no ctx.filter, so it renders identically everywhere. The React
-// component + its RAF/DPR/theme wiring is reimplemented here in vanilla
-// JS since Synapse has no build step; the drawing math (projection,
-// z-sort painter, and the "globe"/"orbits" mode painters) is a direct
-// port of their engine/core.ts, engine/lattice.ts and engine/orbits.ts.
-const ORB = (() => {
-  function hashD(a, b) {
-    const h = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
-    return h - Math.floor(h);
-  }
-  function angleDelta(a, b) { return Math.atan2(Math.sin(a - b), Math.cos(a - b)); }
-  function makeProj(yaw, tilt, cx, cy, scale) {
-    const st = Math.sin(tilt), ct = Math.cos(tilt);
-    const sy = Math.sin(yaw), cyw = Math.cos(yaw);
-    return (x, y, z) => {
-      const x1 = x * cyw + z * sy;
-      const z1 = -x * sy + z * cyw;
-      const y1 = y * ct - z1 * st;
-      const z2 = y * st + z1 * ct;
-      return [cx + x1 * scale, cy - y1 * scale, z2];
-    };
-  }
-  function paint(ctx, dots, dark, rMin) {
-    if (rMin == null) rMin = 0.3;
-    dots.sort((a, b) => a.z - b.z);
-    for (const d of dots) {
-      const alpha = d.a == null ? 1 : d.a;
-      if (alpha < 0.02) continue;
-      const w = Math.min(1, Math.max(0, d.white));
-      const g = Math.round((dark ? 1 - w : w) * 255);
-      ctx.fillStyle = 'rgba(' + g + ',' + g + ',' + g + ',' + alpha + ')';
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  function radiusScale(size, pow) { return Math.pow(size / 300, pow); }
-
-  // "globe" — a scan meridian sweeps a dotted globe (used as "Thinking")
-  function drawGlobe(ctx, size, t, dark, o) {
-    const spin = 0.5;
-    const cx = size / 2, cy = size / 2;
-    const radius = (size / 2) * 0.82;
-    const tilt = 0.4 + 0.06 * Math.sin(t * 0.35);
-    const pt = makeProj(t * spin, tilt, cx, cy, radius);
-    const scan = t * (spin + (1.7 - spin) * (o.scanMul == null ? 1 : o.scanMul));
-    const rs = radiusScale(size, o.rsPow == null ? 0.6 : o.rsPow);
-    const dimBase = o.dimBase == null ? 1 : o.dimBase;
-    const dots = [];
-    const latRings = o.latRings == null ? 17 : o.latRings;
-    const lonDensity = o.lonDensity == null ? 44 : o.lonDensity;
-    for (let li = 0; li <= latRings; li++) {
-      const lat = -Math.PI / 2 + (li / latRings) * Math.PI;
-      const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
-      const lonCount = Math.max(1, Math.round(Math.abs(cosLat) * lonDensity));
-      for (let lj = 0; lj < lonCount; lj++) {
-        const lon = (lj / lonCount) * 2 * Math.PI;
-        const p = pt(cosLat * Math.cos(lon), sinLat, cosLat * Math.sin(lon));
-        const z = p[2];
-        const depth = (z + 1) / 2;
-        const d = angleDelta(lon + t * spin, scan);
-        const boost = Math.exp(-(d * d) / 0.18) * Math.max(0, z);
-        dots.push({
-          x: p[0], y: p[1], z: z,
-          r: ((o.rBase == null ? 0.6 : o.rBase) + (o.rDepth == null ? 1.7 : o.rDepth) * depth + (o.rBoost == null ? 1 : o.rBoost) * boost) * rs,
-          white: (o.inkFar == null ? 0.62 : o.inkFar) - (o.inkSpan == null ? 0.54 : o.inkSpan) * depth,
-          a: dimBase + (1 - dimBase) * Math.min(1, boost)
-        });
-      }
-    }
-    paint(ctx, dots, dark, o.rMin);
-  }
-
-  // "orbits" — particles running tilted orbits (used as "Working")
-  function drawOrbits(ctx, size, t, dark, o) {
-    const cx = size / 2, cy = size / 2;
-    const R = (size / 2) * 0.82;
-    const pt = makeProj(t * 0.12, 0.3, cx, cy, 1);
-    const rs = radiusScale(size, o.rsPow == null ? 0.6 : o.rsPow);
-    const dots = [];
-    const orbitN = o.orbitN == null ? 12 : o.orbitN;
-    const ghostN = o.ghostN == null ? 40 : o.ghostN;
-    const particles = o.particles == null ? 3 : o.particles;
-    for (let orb = 0; orb < orbitN; orb++) {
-      const h1 = hashD(orb, 1.7), h2 = hashD(orb, 5.2), h3 = hashD(orb, 8.9);
-      const ro = R * (0.45 + 0.52 * h1);
-      const th = h1 * 2 * Math.PI;
-      const phi = Math.acos(2 * h2 - 1);
-      const nx = Math.sin(phi) * Math.cos(th);
-      const ny = Math.cos(phi);
-      const nz = Math.sin(phi) * Math.sin(th);
-      let ux = -ny, uy = nx, uz = 0;
-      const ul = Math.max(1e-6, Math.sqrt(ux * ux + uy * uy));
-      ux /= ul; uy /= ul;
-      const vx = ny * uz - nz * uy;
-      const vy = nz * ux - nx * uz;
-      const vz = nx * uy - ny * ux;
-      const speed = (0.25 + 0.55 * h3) * (h3 > 0.5 ? 1 : -1);
-      for (let k = 0; k < ghostN; k++) {
-        const a = (k / ghostN) * 2 * Math.PI;
-        const p = pt((ux * Math.cos(a) + vx * Math.sin(a)) * ro, (uy * Math.cos(a) + vy * Math.sin(a)) * ro, (uz * Math.cos(a) + vz * Math.sin(a)) * ro);
-        const depth = (p[2] / ro + 1) / 2;
-        dots.push({ x: p[0], y: p[1], z: p[2], r: (o.ghostR == null ? 0.9 : o.ghostR) * rs, white: 0.72, a: (o.ghostA == null ? 0.5 : o.ghostA) * (0.4 + 0.6 * depth) });
-      }
-      for (let m = 0; m < particles; m++) {
-        const a = t * speed + (m / particles) * 2 * Math.PI + h2 * 6;
-        const p = pt((ux * Math.cos(a) + vx * Math.sin(a)) * ro, (uy * Math.cos(a) + vy * Math.sin(a)) * ro, (uz * Math.cos(a) + vz * Math.sin(a)) * ro);
-        const depth = (p[2] / ro + 1) / 2;
-        dots.push({ x: p[0], y: p[1], z: p[2], r: ((o.partR == null ? 1.2 : o.partR) + (o.partRDepth == null ? 1.6 : o.partRDepth) * depth) * rs, white: 0.3 - 0.22 * depth });
-      }
-    }
-    paint(ctx, dots, dark, o.rMin);
-  }
-
-  const MODES = { globe: drawGlobe, orbits: drawOrbits };
-  const BASE_PROFILES = {
-    globe:  { latRings:17, lonDensity:44, rBase:0.6, rDepth:1.7, rBoost:1.0, inkFar:0.62, inkSpan:0.54, rsPow:0.6, rMin:0.3 },
-    orbits: { orbitN:12, ghostN:40, ghostR:0.9, ghostA:0.5, particles:3, partR:1.2, partRDepth:1.6, rsPow:0.6, rMin:0.3 }
-  };
-  // Speed/density/radius tunings ported from their shipped 64px preset —
-  // reads well shrunk down to our inline button/spinner sizes (~16-22px).
-  const PRESETS = {
-    globe:  { speed:2.015, count:0.42, size:1.15, extra:{ scanMul:4.08, dimBase:0.45 } },
-    orbits: { speed:1.885, count:1,    size:1 }
-  };
-  function scaleCounts(opts, scale) {
-    const out = Object.assign({}, opts);
-    const rt = Math.sqrt(scale);
-    if (out.latRings != null && out.lonDensity != null) {
-      out.latRings = Math.max(2, Math.round(out.latRings * rt));
-      out.lonDensity = Math.max(2, Math.round(out.lonDensity * rt));
-    }
-    ['orbitN', 'ghostN'].forEach(function(k) { if (out[k] != null) out[k] = Math.max(1, Math.round(out[k] * scale)); });
-    return out;
-  }
-  function scaleRadii(opts, scale) {
-    const out = Object.assign({}, opts);
-    ['rBase','rDepth','rActive','ghostR','partR','partRDepth'].forEach(function(k) { if (out[k] != null) out[k] = out[k] * scale; });
-    return out;
-  }
-  function resolve(mode) {
-    const preset = PRESETS[mode];
-    let opts = Object.assign({}, BASE_PROFILES[mode]);
-    if (preset.count !== 1) opts = scaleCounts(opts, preset.count);
-    if (preset.size !== 1) opts = scaleRadii(opts, preset.size);
-    if (preset.extra) opts = Object.assign(opts, preset.extra);
-    return { draw: MODES[mode], speed: preset.speed, opts: opts };
-  }
-
-  const LABELS = { globe: 'Thinking…', orbits: 'Working…' };
-
-  // Mounts a small animated orb canvas into `container` (appended as a child).
-  // Returns { stop() } — cancels the rAF loop and removes the canvas.
-  function mount(container, options) {
-    options = options || {};
-    const mode = options.mode || 'globe';
-    const size = options.size || 18;
-    const canvas = document.createElement('canvas');
-    canvas.className = 'thinking-orb';
-    canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', LABELS[mode] || 'Loading…');
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
-    canvas.style.cssText = 'width:' + size + 'px;height:' + size + 'px;display:inline-block;vertical-align:middle;flex-shrink:0;';
-    container.appendChild(canvas);
-    const ctx = canvas.getContext('2d');
-    const resolved = resolve(mode);
-    const isDark = options.dark != null ? options.dark : document.body.classList.contains('dark');
-    let raf = 0, running = true;
-    function frame(tSec) {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, size, size);
-      resolved.draw(ctx, size, tSec, isDark, resolved.opts);
-    }
-    function loop() {
-      if (!running) return;
-      frame((performance.now() / 1000) * resolved.speed);
-      raf = requestAnimationFrame(loop);
-    }
-    loop();
-    return {
-      stop: function() {
-        running = false;
-        cancelAnimationFrame(raf);
-        if (canvas.parentNode) canvas.remove();
-      }
-    };
-  }
-
-  // Convenience: returns an HTML string for a host span (for template-string
-  // button states) plus the id to mount() into right after inserting the HTML.
-  function hostHtml(id, size) {
-    return '<span id="' + id + '" style="display:inline-flex;vertical-align:middle;margin-right:6px;width:' + (size||18) + 'px;height:' + (size||18) + 'px;"></span>';
-  }
-
-  return { mount: mount, hostHtml: hostHtml };
-})();
-
 // ─── VISION-CAPABLE MODELS ─────────────────────────
 const VISION_MODELS = new Set([
   'openai/gpt-5.1',
@@ -5622,8 +5427,7 @@ const S = {
 };
 
 // ─── SPLASH → AUTH CHECK ───────────────────────────
-let _splashOrb = null;
-function _stopSplashOrb() { if (_splashOrb) { _splashOrb.stop(); _splashOrb = null; } }
+function _stopSplashOrb() {} // no-op — splash uses a plain CSS progress bar now, nothing to tear down
 
 function _hideSplashShowLogin() {
   // Safe, unconditional: hides splash and reveals the login page.
@@ -5654,9 +5458,6 @@ function initApp() {
   const hdrDateEl = document.getElementById('hdrDate');
   if (hdrDateEl) hdrDateEl.textContent =
     new Date().toLocaleDateString('en-MY',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
-
-  const spOrbHost = document.getElementById('spOrb');
-  if (spOrbHost) _splashOrb = ORB.mount(spOrbHost, { mode: 'globe', size: 40, dark: true }); // splash bg is always the dark navy gradient
 
   const splash = document.getElementById('splash');
 
@@ -6288,15 +6089,12 @@ async function generateEntry() {
       return;
     }
     const n = S.patientInfoImages.length;
-    btn.innerHTML = `${ORB.hostHtml('entryOrbHost', 15)} Working…`;
-    const _entryOrb = ORB.mount(document.getElementById('entryOrbHost'), { mode: 'orbits', size: 15 });
+    btn.innerHTML = '<div class="loading-ring"></div> Working…';
     btn.disabled = true;
     try {
       await extractAndFillFromImages(S.patientInfoImages);
     } catch(e) {
       console.warn('Image extraction failed:', e.message);
-    } finally {
-      _entryOrb.stop();
     }
     btn.innerHTML = '<div class="loading-ring"></div> Generating…';
     d = collectPatient(); // re-collect — form fields now filled from images
@@ -6506,9 +6304,8 @@ async function generateSynapse() {
   if (!hasAny) { alert('Please enter patient information first.'); return; }
 
   const btn = document.getElementById('btnSynapse');
-  btn.innerHTML = ORB.hostHtml('synapseOrbHost', 16) + 'Thinking…';
+  btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
   btn.disabled = true;
-  const _synapseOrb = ORB.mount(document.getElementById('synapseOrbHost'), { mode: 'globe', size: 16 });
 
   const patCtx = buildPatientContext(d);
 
@@ -6714,7 +6511,6 @@ Use formal medical language. Be specific. Acknowledge limitations when informati
   } catch(e) {
     appendOutput('synapse', `⚠ Error: ${e.message}\n\nPlease check your API key in Settings and ensure you have an active internet connection.`);
   } finally {
-    _synapseOrb.stop();
     btn.innerHTML = `<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Synapse`;
     btn.disabled = false;
   }
@@ -7235,17 +7031,15 @@ function addTyping() {
     <div class="msg-av">S</div>
     <div class="msg-bub">
       <div class="typing-bubble">
-        ${ORB.hostHtml('chatTypingOrbHost', 20)}
+        <div class="typing"><span></span><span></span><span></span></div>
         <span class="typing-label">Synapse AI is thinking…</span>
       </div>
     </div>`;
   wrap.appendChild(div);
-  div._orb = ORB.mount(document.getElementById('chatTypingOrbHost'), { mode: 'globe', size: 20 });
   wrap.scrollTop = wrap.scrollHeight;
   return div;
 }
 function removeTyping(typingEl) {
-  if (typingEl && typingEl._orb) typingEl._orb.stop();
   if (typingEl) typingEl.remove();
 }
 
@@ -7665,8 +7459,7 @@ async function generateRefLetter() {
   const btn  = document.getElementById('refGenBtn');
   const body = document.getElementById('refBody');
   btn.disabled = true;
-  btn.innerHTML = ORB.hostHtml('refGenOrbHost', 14) + 'Thinking…';
-  const _refOrb = ORB.mount(document.getElementById('refGenOrbHost'), { mode: 'globe', size: 14 });
+  btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
   body.style.opacity = '0';
   setTimeout(() => {
     body.innerHTML = `<div class="ref-loading"><div class="loading-ring" style="border-color:rgba(0,0,0,.15);border-top-color:var(--primary);width:20px;height:20px;"></div> Generating referral letter…</div>`;
@@ -7742,7 +7535,6 @@ Be concise but clinically complete. Do not invent values not provided. If data i
       body.style.opacity = '1';
     }, 130);
   } finally {
-    _refOrb.stop();
     btn.disabled = false;
     btn.innerHTML = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Generate`;
   }
@@ -17204,8 +16996,7 @@ async function interpretImaging(fieldId) {
   const intBtn = document.getElementById(`imgfint_${fieldId}`);
   if (!resEl) return;
   resEl.style.display = 'block';
-  resEl.innerHTML = `<div class="iires-loading">${ORB.hostHtml('imgOrbHost_' + fieldId, 14)} Interpreting ${escHtml(IMG_FIELD_NAMES[fieldId])}…</div>`;
-  const _imgOrb = ORB.mount(document.getElementById('imgOrbHost_' + fieldId), { mode: 'globe', size: 14 });
+  resEl.innerHTML = `<div class="iires-loading"><div class="loading-ring"></div> Interpreting ${escHtml(IMG_FIELD_NAMES[fieldId])}…</div>`;
   if (intBtn) intBtn.disabled = true;
 
   try {
@@ -17254,7 +17045,6 @@ async function interpretImaging(fieldId) {
   } catch (e) {
     resEl.innerHTML = `<div style="color:var(--danger)">⚠ ${escHtml(e.message)}</div>`;
   } finally {
-    _imgOrb.stop();
     if (intBtn) intBtn.disabled = false;
   }
 }
@@ -17330,21 +17120,18 @@ async function confirmFillFromPatientInfoImages() {
   const btn = document.getElementById('piFillGoBtn');
   const orig = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = ORB.hostHtml('piFillOrbHost', 13) + 'Reading…';
-  const _piFillOrb = ORB.mount(document.getElementById('piFillOrbHost'), { mode: 'orbits', size: 13 });
+  btn.innerHTML = '<div class="loading-ring"></div> Reading…';
   const status = document.getElementById('piFillStatus');
   status.className = 'notepad-status';
   status.textContent = 'AI is reading the image(s) and filling the form…';
 
   try {
     const filled = await extractAndFillFromImages(S.patientInfoImages);
-    _piFillOrb.stop();
     status.className = 'notepad-status ok';
     status.textContent = `✓ Filled ${filled} field${filled!==1?'s':''} — only empty fields were touched`;
     btn.innerHTML = '✓ Done';
     setTimeout(() => { closeModal('piFillConfirmModal'); btn.disabled = false; btn.innerHTML = orig; }, 1400);
   } catch(e) {
-    _piFillOrb.stop();
     status.className = 'notepad-status err';
     status.textContent = '❌ ' + e.message;
     btn.disabled = false; btn.innerHTML = orig;
@@ -23412,17 +23199,14 @@ async function fillFromDictation() {
   const fillBtn = document.getElementById('dictFillBtn');
   fillBtn.disabled = true;
   fillBtn.textContent = 'Filling…';
-  document.getElementById('dictStatus').innerHTML = `${ORB.hostHtml('dictFillOrbHost', 15)} AI is filling the form…`;
-  const _dictFillOrb = ORB.mount(document.getElementById('dictFillOrbHost'), { mode: 'orbits', size: 15 });
+  document.getElementById('dictStatus').innerHTML = `<div class="loading-ring"></div> AI is filling the form…`;
   try {
     const fields = await aiExtractFields(transcript, 'a voice dictation');
     const filled = applyExtractedFields(fields);
-    _dictFillOrb.stop();
     document.getElementById('dictStatus').textContent = `✓ Filled ${filled} field${filled!==1?'s':''} successfully`;
     fillBtn.textContent = '✓ Done';
     setTimeout(() => closeDictate(), 1600);
   } catch(e) {
-    _dictFillOrb.stop();
     document.getElementById('dictStatus').textContent = `❌ ${e.message}`;
     fillBtn.disabled = false;
     fillBtn.textContent = '✔ Fill Form';
@@ -23446,15 +23230,13 @@ async function notepadExtract() {
   const btn = document.getElementById('notepadGoBtn');
   const orig = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = ORB.hostHtml('notepadOrbHost', 13) + 'Extracting…';
-  const _notepadOrb = ORB.mount(document.getElementById('notepadOrbHost'), { mode: 'orbits', size: 13 });
+  btn.innerHTML = '<div class="loading-ring"></div> Extracting…';
   status.className = 'notepad-status';
   status.textContent = 'AI is reading your notes and filling the form…';
 
   try {
     const fields = await aiExtractFields(text, 'pasted clinical notes');
     const filled = applyExtractedFields(fields);
-    _notepadOrb.stop();
     status.className = 'notepad-status ok';
     status.textContent = `✓ Filled ${filled} field${filled!==1?'s':''} — only empty fields were touched`;
     btn.innerHTML = '✓ Done';
@@ -23464,7 +23246,6 @@ async function notepadExtract() {
       btn.disabled = false; btn.innerHTML = orig;
     }, 1400);
   } catch(e) {
-    _notepadOrb.stop();
     status.className = 'notepad-status err';
     status.textContent = '❌ ' + e.message;
     btn.disabled = false; btn.innerHTML = orig;
@@ -23554,11 +23335,9 @@ async function generateHandover() {
   const output = document.getElementById('hovOutput');
   const copyBtn = document.getElementById('hovCopyBtn');
   btn.disabled   = true;
-  btn.innerHTML  = ORB.hostHtml('hovOrbHost', 15) + 'Thinking…';
-  const _hovOrb = ORB.mount(document.getElementById('hovOrbHost'), { mode: 'globe', size: 15 });
+  btn.innerHTML  = '<div class="loading-ring"></div> Thinking…';
   copyBtn.style.display = 'none';
-  output.innerHTML = `<div class="hov-loading">${ORB.hostHtml('hovOutOrbHost', 18)} Generating handover document…</div>`;
-  const _hovOutOrb = ORB.mount(document.getElementById('hovOutOrbHost'), { mode: 'globe', size: 18 });
+  output.innerHTML = `<div class="hov-loading"><div class="loading-ring"></div> Generating handover document…</div>`;
 
   const patientBlock = _hovPatients.map((p, i) => [
     `Patient ${i + 1}:`,
@@ -23608,8 +23387,6 @@ WARD SUMMARY: Total patients, any critical concerns, general overnight plan.`;
   } catch(e) {
     output.innerHTML = `<div class="hov-error">❌ ${e.message}</div>`;
   } finally {
-    _hovOrb.stop();
-    _hovOutOrb.stop();
     btn.disabled  = false;
     btn.innerHTML = '<svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Generate Handover';
   }
@@ -23752,15 +23529,13 @@ async function generatePatComms() {
     editBtn.textContent = '✏ Edit';
   }
   btn.disabled   = true;
-  btn.innerHTML  = ORB.hostHtml('pcomOrbHost', 15) + 'Thinking…';
-  const _pcomOrb = ORB.mount(document.getElementById('pcomOrbHost'), { mode: 'globe', size: 15 });
+  btn.innerHTML  = '<div class="loading-ring"></div> Thinking…';
   copyBtn.style.display      = 'none';
   editBtn.style.display      = 'none';
   romanizeBtn.style.display  = 'none';
   document.getElementById('pcomTranslitSection').style.display = 'none';
   _pcomRawText = '';
-  output.innerHTML = `<div class="pcom-loading">${ORB.hostHtml('pcomOutOrbHost', 18)} Generating patient communication…</div>`;
-  const _pcomOutOrb = ORB.mount(document.getElementById('pcomOutOrbHost'), { mode: 'globe', size: 18 });
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating patient communication…</div>`;
 
   const typeDesc = {
     diagnosis : 'Explain the patient\'s diagnosis and what it means for them',
@@ -23813,8 +23588,6 @@ Keep it concise but complete. Do not use bullet points as a crutch — mix with 
   } catch(e) {
     output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
   } finally {
-    _pcomOrb.stop();
-    _pcomOutOrb.stop();
     btn.disabled  = false;
     btn.innerHTML = '<svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10z"/></svg> Generate';
   }
