@@ -43,7 +43,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 
 /* ─── SPLASH ─────────────────────────────────────── */
 #splash{
-  position:fixed;inset:0;z-index:999;
+  position:fixed;inset:0;z-index:1001;
   background:var(--batik-pattern), var(--grad-primary);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   transition:opacity .8s ease, transform .8s ease;
@@ -125,7 +125,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 
 /* ─── WELCOME ANIMATION ──────────────────────────── */
 #welcomeScreen{
-  position:fixed;inset:0;z-index:998;
+  position:fixed;inset:0;z-index:1001;
   background:var(--batik-pattern), var(--grad-primary);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   opacity:0;pointer-events:none;
@@ -5520,7 +5520,7 @@ function initApp() {
       _maybeShowWebauthnLogin();
       loginLogoWrap.style.transition = 'none';
       loginLogoWrap.style.transform  = 'translateY(-14px)';
-      loginLogoWrap.style.opacity    = '1'; // visible under splash (z-index:999 covers it); avoids blink on swap
+      loginLogoWrap.style.opacity    = '1'; // visible under splash (z-index:1001 covers it); avoids blink on swap
       loginCard.style.transition     = 'none';
       loginCard.style.opacity        = '0';
       loginCard.style.transform      = 'translateY(28px)';
