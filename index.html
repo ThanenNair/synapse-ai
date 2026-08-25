@@ -44,6 +44,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 /* ─── SPLASH ─────────────────────────────────────── */
 #splash{
   position:fixed;inset:0;z-index:1001;
+  height:100vh;height:100dvh;
   background:var(--batik-pattern), var(--grad-primary);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   transition:opacity .8s ease, transform .8s ease;
@@ -126,6 +127,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 /* ─── WELCOME ANIMATION ──────────────────────────── */
 #welcomeScreen{
   position:fixed;inset:0;z-index:1001;
+  height:100vh;height:100dvh;
   background:var(--batik-pattern), var(--grad-primary);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   opacity:0;pointer-events:none;
@@ -160,6 +162,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 /* ─── APP SHELL ──────────────────────────────────── */
 #app{
   position:fixed;top:0;right:0;bottom:0;left:var(--rail-w,0px);
+  height:100vh;height:100dvh;
   display:flex;flex-direction:row;
   opacity:0;
   transition:opacity .6s var(--ease), left .22s var(--ease);
@@ -805,7 +808,7 @@ body.dark .dict-btn.ghost{background:var(--card);}
 .finput{
   background:var(--bg);border:1.5px solid var(--border);border-radius:7px;
   padding:.42rem .65rem;font-size:.8rem;font-family:'Roboto',sans-serif;color:var(--text);
-  outline:none;width:100%;transition:border-color .2s,background .2s;
+  outline:none;width:100%;min-width:0;transition:border-color .2s,background .2s;
 }
 .finput:focus{border-color:var(--accent);background:#fff;}
 textarea.finput{resize:vertical;min-height:64px;line-height:1.5;}
@@ -979,6 +982,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 /* ─── LOGIN PAGE ─────────────────────────────────── */
 #login-page{
   position:fixed;inset:0;z-index:90;
+  height:100vh;height:100dvh;
   background:var(--batik-pattern), var(--grad-primary);
   display:none;flex-direction:column;
   align-items:center;justify-content:center;
@@ -1313,6 +1317,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
    floats above ANY screen — the dashboard, or any tool/drug reference. */
 .sidebar{
   position:fixed;top:0;left:0;bottom:0;z-index:1000;flex-shrink:0;
+  height:100vh;height:100dvh;
   width:284px;background:#fff;
   display:flex;flex-direction:column;
   box-shadow:2px 0 24px rgba(0,0,0,.35);
@@ -4264,9 +4269,9 @@ body.dark #app::before{
         <div class="fsec">
           <div class="fsec-hdr" onclick="toggleSec(this)">
             <div class="fsec-title">🩻 Imaging &amp; Investigations</div>
-            <span class="chev">▾</span>
+            <span class="chev open">▾</span>
           </div>
-          <div class="fsec-body col1 hidden">
+          <div class="fsec-body col1">
 
             <!-- ECG -->
             <div class="fg full">
