@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Synapse AI — Clinical Intelligence Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600&display=swap" rel="stylesheet">
 <style>
@@ -44,6 +44,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 /* ─── SPLASH ─────────────────────────────────────── */
 #splash{
   position:fixed;inset:0;z-index:1001;
+  height:var(--app-vh, 100vh);
   background:var(--batik-pattern), var(--grad-primary);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   transition:opacity .8s ease, transform .8s ease;
@@ -126,6 +127,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 /* ─── WELCOME ANIMATION ──────────────────────────── */
 #welcomeScreen{
   position:fixed;inset:0;z-index:1001;
+  height:var(--app-vh, 100vh);
   background:var(--batik-pattern), var(--grad-primary);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   opacity:0;pointer-events:none;
@@ -160,6 +162,7 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 /* ─── APP SHELL ──────────────────────────────────── */
 #app{
   position:fixed;top:0;right:0;bottom:0;left:var(--rail-w,0px);
+  height:var(--app-vh, 100vh);
   display:flex;flex-direction:row;
   opacity:0;
   transition:opacity .6s var(--ease), left .22s var(--ease);
@@ -979,6 +982,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 /* ─── LOGIN PAGE ─────────────────────────────────── */
 #login-page{
   position:fixed;inset:0;z-index:90;
+  height:var(--app-vh, 100vh);
   background:var(--batik-pattern), var(--grad-primary);
   display:none;flex-direction:column;
   align-items:center;justify-content:center;
@@ -1313,6 +1317,7 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
    floats above ANY screen — the dashboard, or any tool/drug reference. */
 .sidebar{
   position:fixed;top:0;left:0;bottom:0;z-index:1000;flex-shrink:0;
+  height:var(--app-vh, 100vh);
   width:284px;background:#fff;
   display:flex;flex-direction:column;
   box-shadow:2px 0 24px rgba(0,0,0,.35);
@@ -5333,6 +5338,27 @@ body.dark #app::before{
 
 
 <script>
+
+// ─── ON-SCREEN KEYBOARD VIEWPORT FIX ────────────────
+// iOS shrinks only the *visual* viewport when the keyboard shows, leaving
+// fixed-position full-screen elements (#app, .sidebar, #login-page, ...)
+// anchored to the full, unchanged page — the mismatch is what makes the
+// layout look squished/pushed up while typing. `interactive-widget=
+// resizes-content` on the viewport meta tag (added alongside this) is the
+// primary fix; this listener is a compatibility fallback for browsers that
+// don't yet honor that directive, keeping a --app-vh custom property in
+// sync with the actual visible height so those elements can size against
+// it. No-op on desktop: visualViewport.height there always equals
+// window.innerHeight, so --app-vh never differs from what top/bottom
+// anchoring would already compute.
+(function() {
+  if (!window.visualViewport) return;
+  function syncAppVh() {
+    document.documentElement.style.setProperty('--app-vh', window.visualViewport.height + 'px');
+  }
+  window.visualViewport.addEventListener('resize', syncAppVh);
+  syncAppVh();
+})();
 
 // ─── VISION-CAPABLE MODELS ─────────────────────────
 const VISION_MODELS = new Set([
