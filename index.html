@@ -3152,6 +3152,17 @@ body.dark #app::before{
   </div>
 
   <div class="login-card" id="loginCard">
+    <!-- TOUCH ID / FACE ID / WINDOWS HELLO -->
+    <div id="webauthnLoginWrap" style="display:none">
+      <div class="login-title">Welcome back</div>
+      <div class="login-sub">Sign in with Touch ID</div>
+      <div class="login-err" id="webauthnErr"></div>
+      <button class="login-submit" id="webauthnBtn" onclick="doWebauthnLogin()" style="display:flex;align-items:center;justify-content:center;gap:.55rem;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 0-4 4v2"/><path d="M16 7a4 4 0 0 0-8 0v2"/><path d="M6 9v3a6 6 0 0 0 6 6"/><path d="M18 9v4a8 8 0 0 1-1.5 4.7"/><path d="M9 18a3 3 0 0 0 3 3c3.5 0 6-2.5 6.6-6"/><path d="M12 12v2a3 3 0 0 0 3 3"/></svg>
+        <span id="webauthnBtnLabel">Sign in with Touch ID</span>
+      </button>
+      <div class="login-toggle"><a onclick="_useWebauthnFallback()">Use password instead</a></div>
+    </div>
     <!-- SIGN IN -->
     <div id="loginFormWrap">
       <div class="login-title">Welcome back</div>
@@ -3964,6 +3975,16 @@ body.dark #app::before{
             </button>
           </div>
         </div>
+      </div>
+      <div class="settings-sec" id="stSecuritySec" style="display:none">
+        <div class="settings-sec-title">Security</div>
+        <div class="settings-row">
+          <span class="settings-row-label">Sign in with Touch ID</span>
+          <button class="dark-toggle" id="stTouchIdToggle" onclick="toggleTouchId()">
+            <span class="dark-toggle-knob"></span>
+          </button>
+        </div>
+        <div style="font-size:.68rem;color:var(--text-muted);line-height:1.5;margin-top:.3rem;">Skip the password on this device using Touch ID, Face ID, or Windows Hello — whatever your browser offers. The check happens on your device; Synapse never sees your biometric data.</div>
       </div>
     </div>
     <div class="settings-foot">
@@ -5442,6 +5463,7 @@ function _hideSplashShowLogin() {
       if (loginCard) loginCard.classList.add('visible');
     }, 280);
   }));
+  _maybeShowWebauthnLogin();
 }
 
 function initApp() {
@@ -5495,6 +5517,7 @@ function initApp() {
       if (spLogo) spLogo.offsetHeight;
 
       loginPage.style.display        = 'flex';
+      _maybeShowWebauthnLogin();
       loginLogoWrap.style.transition = 'none';
       loginLogoWrap.style.transform  = 'translateY(-14px)';
       loginLogoWrap.style.opacity    = '1'; // visible under splash (z-index:999 covers it); avoids blink on swap
@@ -16119,6 +16142,11 @@ function openSettings() {
   document.getElementById('stCustomPrompt').value = S.customPrompt;
   document.getElementById('settingsOverlay').classList.add('on');
   document.getElementById('settingsPanel').classList.add('on');
+  _platformAuthAvailable().then(avail => {
+    const sec = document.getElementById('stSecuritySec');
+    if (sec) sec.style.display = avail ? 'block' : 'none';
+    if (avail) _refreshTouchIdToggle();
+  });
 }
 
 function closeSettings() {
@@ -16173,6 +16201,126 @@ function applyDarkMode() {
 // ─── USER KEY HELPER ───────────────────────────────
 function ukey(k) { return `sai_u_${S.currentUser}_${k}`; }
 
+// ─── TOUCH ID / FACE ID / WINDOWS HELLO (WebAuthn) ──
+// This app has no backend (Supabase was removed — see HANDOFF), so there is
+// nothing to verify a signed assertion against server-side. The security
+// boundary here is simply "the browser's own platform authenticator (Touch
+// ID/Face ID/Windows Hello) accepted this device's user" — same pattern most
+// backend-less "unlock with biometrics" web apps use. Credential IDs are
+// stored per-username in localStorage (global, not per-user-namespaced,
+// since the login page doesn't know who's signing in yet).
+function webauthnSupported() { return !!(window.PublicKeyCredential && navigator.credentials); }
+async function _platformAuthAvailable() {
+  if (!webauthnSupported()) return false;
+  try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch(e) { return false; }
+}
+function _b64urlToBuf(b64url) {
+  const pad = '='.repeat((4 - b64url.length % 4) % 4);
+  const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+function _getWebauthnCreds() { return JSON.parse(localStorage.getItem('sai_webauthn_creds') || '{}'); }
+function _saveWebauthnCreds(c) { localStorage.setItem('sai_webauthn_creds', JSON.stringify(c)); }
+
+function _refreshTouchIdToggle() {
+  const toggle = document.getElementById('stTouchIdToggle');
+  if (!toggle) return;
+  const creds = _getWebauthnCreds();
+  toggle.classList.toggle('on', !!(S.currentUser && creds[S.currentUser]));
+}
+
+async function enableTouchId() {
+  if (!S.currentUser || !webauthnSupported()) return;
+  try {
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'Synapse AI' },
+        user: { id: new TextEncoder().encode(S.currentUser), name: S.currentUser, displayName: S.currentUser },
+        pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
+        authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required', residentKey:'preferred' },
+        timeout: 60000,
+      }
+    });
+    if (!cred) throw new Error('No credential returned');
+    const creds = _getWebauthnCreds();
+    creds[S.currentUser] = { id: cred.id, createdAt: Date.now() };
+    _saveWebauthnCreds(creds);
+    localStorage.setItem('sai_last_user', S.currentUser);
+  } catch (e) {
+    console.warn('Touch ID setup failed/cancelled', e);
+    alert('Could not set up Touch ID: ' + (e.message || 'cancelled, or unavailable on this device.'));
+  }
+  _refreshTouchIdToggle();
+}
+
+function disableTouchId() {
+  if (!S.currentUser) return;
+  const creds = _getWebauthnCreds();
+  delete creds[S.currentUser];
+  _saveWebauthnCreds(creds);
+  _refreshTouchIdToggle();
+}
+
+function toggleTouchId() {
+  const creds = _getWebauthnCreds();
+  if (S.currentUser && creds[S.currentUser]) disableTouchId(); else enableTouchId();
+}
+
+async function doWebauthnLogin() {
+  const err = document.getElementById('webauthnErr');
+  err.classList.remove('on');
+  const user = localStorage.getItem('sai_last_user');
+  const creds = _getWebauthnCreds();
+  const entry = user && creds[user];
+  if (!entry) { _useWebauthnFallback(); return; }
+  try {
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type:'public-key', id: _b64urlToBuf(entry.id) }],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+    });
+    if (!assertion) throw new Error('No assertion returned');
+    S.currentUser = user;
+    sessionStorage.setItem('sai_session', JSON.stringify({ username: user }));
+    showApp(true);
+  } catch (e) {
+    console.warn('Touch ID sign-in failed', e);
+    err.textContent = 'Touch ID sign-in failed or was cancelled.';
+    err.classList.add('on');
+  }
+}
+
+function _useWebauthnFallback() {
+  document.getElementById('webauthnLoginWrap').style.display = 'none';
+  document.getElementById('loginFormWrap').style.display = 'block';
+  const user = localStorage.getItem('sai_last_user');
+  if (user) document.getElementById('loginUser').value = user;
+}
+
+function _maybeShowWebauthnLogin() {
+  const user = localStorage.getItem('sai_last_user');
+  if (!user) return;
+  const creds = _getWebauthnCreds();
+  if (!creds[user]) return;
+  _platformAuthAvailable().then(avail => {
+    if (!avail) return;
+    // Don't yank the user away if they're actively filling in the register form.
+    const regWrap = document.getElementById('registerFormWrap');
+    if (regWrap && regWrap.style.display !== 'none') return;
+    document.getElementById('webauthnBtnLabel').textContent = 'Sign in as ' + user;
+    document.getElementById('webauthnLoginWrap').style.display = 'block';
+    document.getElementById('loginFormWrap').style.display = 'none';
+  });
+}
+
 // ─── AUTH ──────────────────────────────────────────
 async function hashPwd(pwd) {
   const buf = await crypto.subtle.digest('SHA-256',
@@ -16194,6 +16342,7 @@ async function doLogin() {
   if (users[user].passwordHash !== hash) { err.textContent='Incorrect password.'; err.classList.add('on'); return; }
   S.currentUser = user;
   sessionStorage.setItem('sai_session', JSON.stringify({ username: user }));
+  localStorage.setItem('sai_last_user', user);
   showApp(true);
 }
 
@@ -16213,6 +16362,7 @@ async function doRegister() {
   saveUsers(users);
   S.currentUser = user;
   sessionStorage.setItem('sai_session', JSON.stringify({ username: user }));
+  localStorage.setItem('sai_last_user', user);
   showApp(true);
 }
 
@@ -16242,13 +16392,16 @@ function doLogout() {
     lw.classList.add('shifted');
     setTimeout(() => lc.classList.add('visible'), 380);
   }));
+  _maybeShowWebauthnLogin();
 }
 
 function showRegister() {
+  document.getElementById('webauthnLoginWrap').style.display = 'none';
   document.getElementById('loginFormWrap').style.display = 'none';
   document.getElementById('registerFormWrap').style.display = 'block';
 }
 function showLogin() {
+  document.getElementById('webauthnLoginWrap').style.display = 'none';
   document.getElementById('registerFormWrap').style.display = 'none';
   document.getElementById('loginFormWrap').style.display = 'block';
 }
