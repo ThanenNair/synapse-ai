@@ -2112,6 +2112,7 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
 #ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,
 #nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
+#clinicAssistantOverlay .tabs{grid-template-columns:repeat(4,1fr);}
 .ca-instr-bar{display:flex;align-items:center;gap:.55rem;padding:.55rem .9rem;background:rgba(var(--accent-rgb),.05);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ca-instr-icon{color:var(--accent);flex-shrink:0;opacity:.85;}
 .ca-instr-input{flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:7px;padding:.42rem .6rem;font-size:.78rem;font-family:'Roboto',sans-serif;color:var(--text);outline:none;transition:border-color .15s;}
@@ -4652,7 +4653,7 @@ body.dark #app::before{
       <span class="tool-ovl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/><polyline points="8 13 10.5 13 12 10 13.5 16 15 13 16 13"/></svg></span>
       <div class="tool-ovl-titles">
         <div class="tool-ovl-title">Clinic Assistant</div>
-        <div class="tool-ovl-sub">Outpatient consultation support · Consultation notes · Follow-up prep · Specialist consult summaries</div>
+        <div class="tool-ovl-sub">Outpatient consultation support · Consultation notes · Follow-up prep · Consult summaries · MEMO letters</div>
       </div>
       <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
     </div>
@@ -4759,6 +4760,38 @@ body.dark #app::before{
             </div>
             <div id="caSummaryOutput" class="ca-output-body">
               <div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong>.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMO GENERATOR -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
+          <div class="panel-hdr-text">
+            <div class="panel-title">MEMO Generator</div>
+            <div class="panel-sub">Instruction → formal memo letter</div>
+          </div>
+        </div>
+        <div class="ca-panel-body">
+          <div class="ca-card-label">MEMO Instruction</div>
+          <textarea class="ca-textarea" id="caMemoInput" style="min-height:100px;" placeholder="e.g. MEMO for patient to provide to employer mentioning that he will be working from home"></textarea>
+          <label class="ca-checkbox-row">
+            <input type="checkbox" id="caMemoUsePatient" checked>
+            Include current patient data (for diagnosis)
+          </label>
+          <button class="ca-gen-btn" id="caMemoGenBtn" onclick="generateCaMemo()">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            Generate MEMO
+          </button>
+          <div class="ca-panel-output">
+            <div class="ca-output-hdr">
+              <span class="ca-output-title">MEMO</span>
+              <button class="pcom-copy-btn" id="caMemoCopyBtn" onclick="caMemoCopy()" style="display:none;">Copy</button>
+            </div>
+            <div id="caMemoOutput" class="ca-output-body">
+              <div class="ca-output-empty">Describe the MEMO you need, then click <strong>Generate MEMO</strong>.</div>
             </div>
           </div>
         </div>
@@ -24045,6 +24078,76 @@ function caSummaryCopy() {
   const text = _caSummaryRawText || document.getElementById('caSummaryOutput').innerText;
   navigator.clipboard.writeText(text).then(() => {
     const b = document.getElementById('caSummaryCopyBtn');
+    const orig = b.textContent; b.textContent = '✓ Copied!';
+    setTimeout(() => { b.textContent = orig; }, 1800);
+  });
+}
+
+// ─── MEMO Generator ──────────────────────────────────
+let _caMemoRawText = '';
+function _caFormatDateLong(d) {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+async function generateCaMemo() {
+  if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
+  const instruction = document.getElementById('caMemoInput').value.trim();
+  const usePatient   = document.getElementById('caMemoUsePatient').checked;
+  const patCtx       = usePatient ? buildPatientContext(collectPatient()) : '';
+  if (!instruction) { alert('Please describe the MEMO you need first.'); return; }
+
+  const btn    = document.getElementById('caMemoGenBtn');
+  const output = document.getElementById('caMemoOutput');
+  const copyBtn= document.getElementById('caMemoCopyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
+  copyBtn.style.display = 'none';
+  _caMemoRawText = '';
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating MEMO…</div>`;
+
+  const todayLong = _caFormatDateLong(new Date());
+  const sysPrompt = `You are a documentation assistant for a Malaysian clinic doctor, writing a formal MEMO letter (e.g. for an employer, school, or institution) based on the doctor's instruction. Extract the patient's main diagnosis from the provided patient information and incorporate it into the memo — if no diagnosis is available from the patient information or the instruction, use the placeholder "[diagnosis]" rather than inventing one. Follow this exact structure, with blank lines between each part:
+
+Date: ${todayLong}
+
+To Whom It May Concern,
+
+[Paragraph 1 — certify that the patient has been assessed and is under medical care for the main diagnosis.]
+
+[Paragraph 2 — state the specific request from the doctor's instruction (e.g. work from home, light duties, medical leave), including a clinically reasonable duration and specific date range starting today if one isn't given, with brief justification tied to the diagnosis.]
+
+[Paragraph 3 — a resumption/follow-up clause, e.g. "He/she may resume usual duties following this period, subject to clinical reassessment if required."]
+
+Thank you for your kind consideration and cooperation.
+
+Yours sincerely,
+
+Use formal, professional letter language throughout. Match the patient's gender (he/she) if known from the patient information, otherwise use "the patient" or "they". Do not fabricate clinical findings beyond the diagnosis and what the instruction specifies. Leave the line after "Yours sincerely," blank for the doctor's signature — do not invent a name.` + _caCustomInstr();
+  const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}DOCTOR'S INSTRUCTION:\n${instruction}\n\nWrite the MEMO.`;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'HTTP-Referer': location.href },
+      body: JSON.stringify({ model: S.model, messages: [{ role:'system', content: sysPrompt }, { role:'user', content: userPrompt }], temperature: 0.3 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const text = data.choices?.[0]?.message?.content || '';
+    _caMemoRawText = text;
+    output.innerHTML = renderMarkdown(text);
+    copyBtn.style.display = '';
+  } catch(e) {
+    output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Generate MEMO';
+  }
+}
+function caMemoCopy() {
+  const text = _caMemoRawText || document.getElementById('caMemoOutput').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById('caMemoCopyBtn');
     const orig = b.textContent; b.textContent = '✓ Copied!';
     setTimeout(() => { b.textContent = orig; }, 1800);
   });
