@@ -2101,8 +2101,13 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 .dr-paeds-note{font-size:.7rem;color:var(--text);background:var(--bg2);border-radius:5px;padding:.3rem .5rem;margin-top:.4rem;line-height:1.5;}
 
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
-#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,
+#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,
 #nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
+.ca-tabs{display:flex;gap:.35rem;padding:.55rem .9rem;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.ca-tab-btn{padding:.5rem .9rem;border:none;background:transparent;cursor:pointer;border-radius:7px;font-size:.78rem;font-weight:600;color:var(--text-muted);font-family:'Roboto',sans-serif;transition:background .15s,color .15s;}
+.ca-tab-btn.active{background:var(--grad-primary);color:#fff;}
+.ca-tab-pane{display:none;flex:1;min-height:0;overflow:hidden;}
+.ca-tab-pane.active{display:flex;flex-direction:column;}
 .tool-ovl-hdr{background:var(--grad-primary);color:#fff;padding:.85rem 1.2rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .tool-ovl-icon{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .tool-ovl-icon svg{width:18px;height:18px;display:block;stroke:rgba(255,255,255,.88);fill:none;}
@@ -4614,6 +4619,119 @@ body.dark #app::before{
     </div>
   </div>
 
+  <!-- ══════════ CLINIC ASSISTANT ══════════ -->
+  <div id="clinicAssistantOverlay">
+    <div class="tool-ovl-hdr">
+      <span class="tool-ovl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg></span>
+      <div class="tool-ovl-titles">
+        <div class="tool-ovl-title">Clinic Assistant</div>
+        <div class="tool-ovl-sub">Outpatient consultation support · Consultation notes · Follow-up prep · Specialist consult summaries</div>
+      </div>
+      <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
+    </div>
+    <div class="ca-tabs">
+      <button class="ca-tab-btn active" onclick="caSwitchTab('note',this)">📝 Consultation Note</button>
+      <button class="ca-tab-btn" onclick="caSwitchTab('prep',this)">🔄 Follow-Up Prep</button>
+      <button class="ca-tab-btn" onclick="caSwitchTab('summary',this)">👥 Consult Summary</button>
+    </div>
+
+    <!-- CONSULTATION NOTE -->
+    <div class="ca-tab-pane active" id="ca-tab-note">
+      <div class="pcom-layout">
+        <div class="pcom-left">
+          <div class="pcom-section-hdr">Quick Notes</div>
+          <textarea class="pcom-textarea" id="caNoteInput" style="min-height:220px;" placeholder="e.g. c/o sore throat 3/7, no fever, no cough. O/E: pharynx injected, no exudate, tonsils not enlarged, no cervical lymphadenopathy. Dx: viral pharyngitis. Plan: symptomatic Rx, safety-net, review if worsens or persists >7d"></textarea>
+          <label class="pcom-checkbox-row">
+            <input type="checkbox" id="caNoteUsePatient" checked>
+            Include current patient data from Patient Information tab
+          </label>
+          <button class="pcom-gen-btn" id="caNoteGenBtn" onclick="generateCaNote()">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/></svg>
+            Generate Note
+          </button>
+        </div>
+        <div class="pcom-right">
+          <div class="pcom-out-hdr">
+            <span class="pcom-out-title">📝 SOAP Clinic Note</span>
+            <button class="pcom-copy-btn" id="caNoteCopyBtn" onclick="caNoteCopy()" style="display:none;margin-left:auto;">Copy</button>
+          </div>
+          <div id="caNoteOutput" class="pcom-output">
+            <div class="pcom-output-empty">
+              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2"><path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/></svg>
+              <div>Jot down your notes from the visit,<br>then click <strong>Generate Note</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOLLOW-UP PREP -->
+    <div class="ca-tab-pane" id="ca-tab-prep">
+      <div class="pcom-layout">
+        <div class="pcom-left">
+          <div class="pcom-section-hdr">Previous Visit</div>
+          <div style="display:flex;gap:.4rem;">
+            <select class="pcom-select" id="caPrepSessionSelect" style="flex:1;"></select>
+            <button class="pcom-action-btn" onclick="caPrepLoadFromSession()">Load</button>
+          </div>
+          <textarea class="pcom-textarea" id="caPrepPrevious" style="min-height:180px;" placeholder="Paste the patient's previous visit note here, or pick a saved session above and click Load…"></textarea>
+          <label class="pcom-checkbox-row">
+            <input type="checkbox" id="caPrepUsePatient">
+            Include today's patient data from Patient Information tab
+          </label>
+          <button class="pcom-gen-btn" id="caPrepGenBtn" onclick="generateCaPrep()">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            Prepare Follow-Up
+          </button>
+        </div>
+        <div class="pcom-right">
+          <div class="pcom-out-hdr">
+            <span class="pcom-out-title">🔄 Follow-Up Prep</span>
+            <button class="pcom-copy-btn" id="caPrepCopyBtn" onclick="caPrepCopy()" style="display:none;margin-left:auto;">Copy</button>
+          </div>
+          <div id="caPrepOutput" class="pcom-output">
+            <div class="pcom-output-empty">
+              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              <div>Load or paste the previous visit note,<br>then click <strong>Prepare Follow-Up</strong> for what to ask, check, and expect</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONSULT SUMMARY -->
+    <div class="ca-tab-pane" id="ca-tab-summary">
+      <div class="pcom-layout">
+        <div class="pcom-left">
+          <div class="pcom-section-hdr">Case Details</div>
+          <textarea class="pcom-textarea" id="caSummaryCase" style="min-height:160px;" placeholder="Brief case details, key findings, what's been tried so far…"></textarea>
+          <div class="pcom-section-hdr">Question for the Specialist</div>
+          <textarea class="pcom-textarea" id="caSummaryQuestion" style="min-height:60px;" placeholder="e.g. Is this safe to manage in primary care, or does it need urgent referral?"></textarea>
+          <label class="pcom-checkbox-row">
+            <input type="checkbox" id="caSummaryUsePatient" checked>
+            Include current patient data from Patient Information tab
+          </label>
+          <button class="pcom-gen-btn" id="caSummaryGenBtn" onclick="generateCaSummary()">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            Generate Summary
+          </button>
+        </div>
+        <div class="pcom-right">
+          <div class="pcom-out-hdr">
+            <span class="pcom-out-title">👥 Consult Summary</span>
+            <button class="pcom-copy-btn" id="caSummaryCopyBtn" onclick="caSummaryCopy()" style="display:none;margin-left:auto;">Copy</button>
+          </div>
+          <div id="caSummaryOutput" class="pcom-output">
+            <div class="pcom-output-empty">
+              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <div>Add case details and your question,<br>then click <strong>Generate Summary</strong> for a tight case presentation to read out or send</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════ IV INFUSION CALCULATOR ══════════ -->
   <div id="ivInfusionOverlay">
     <div class="tool-ovl-hdr">
@@ -5374,6 +5492,7 @@ const SB_TOOLS = [
   { id:'ivcompat',        label:'IV Compatibility',     cat:'procedures',     icon:'<circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/><path d="M11 12h2"/><path d="M5 12H2M19 12h3"/>',                                                                                                                                                                                                                                                                      fn:"openIvCompat()" },
   { id:'handover',        label:'Shift Handover',       cat:'documentation',  icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',                                                                                                                                                                                                                       fn:"openHandover()" },
   { id:'patcomms',        label:'Patient Comms',        cat:'documentation',  icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10z"/>',                                                                                                                                                                                                                              fn:"openPatComms()" },
+  { id:'clinicassist',    label:'Clinic Assistant',     cat:'documentation',  icon:'<path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/>',                                                                                                                                                                     fn:"openClinicAssistant()" },
   { id:'acls',            label:'ACLS Navigator',       cat:'protocols',      icon:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',                                                                                                                                                                                                                                                                                                                               fn:"openAcls()" },
   { id:'dengue',          label:'Dengue Protocol',      cat:'protocols',      icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',                                                                                                                                                                                                                                                                                                                           fn:"openDengue()" },
   { id:'iocalc',          label:'I/O Calculator',       cat:'procedures',     icon:'<path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>',                                                                                                                                                                                                                                                                                                                                                                                                            fn:"openIoCalc()" },
@@ -23108,7 +23227,7 @@ function ivCompatRender(id) {
 /* ══════════ CLOSE ALL OVERLAYS (instant, no animation) ══════════ */
 const _OVERLAY_IDS = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
   'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-  'handoverOverlay','patCommsOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
+  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
   'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
 function _anyOverlayOpen(exceptId) {
   return _OVERLAY_IDS.some(id => {
@@ -23140,7 +23259,7 @@ function goHome() {
   if (typeof nnjClosePLTable === 'function') nnjClosePLTable(true); // Home must always close the threshold table too, never leave it stuck open
   const ids = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
     'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-    'handoverOverlay','patCommsOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
+    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
     'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -23702,6 +23821,196 @@ function pcomCopy() {
     const orig = btn.textContent;
     btn.textContent = '✓ Copied!';
     setTimeout(() => { btn.textContent = orig; }, 1800);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLINIC ASSISTANT — outpatient consultation support
+// Three AI-assisted tools sharing the same OpenRouter key/model as
+// Tab 1 (S.apiKey/S.model) — no separate setup needed.
+// ═══════════════════════════════════════════════════════════════
+let _caNoteRawText    = '';
+let _caPrepRawText    = '';
+let _caSummaryRawText = '';
+
+function openClinicAssistant() {
+  document.getElementById('clinicAssistantOverlay').style.display = 'flex';
+  _closeAllOverlays('clinicAssistantOverlay');
+  caPopulateSessionPicker();
+}
+
+function caSwitchTab(id, btn) {
+  document.querySelectorAll('.ca-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ca-tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ca-tab-' + id).classList.add('active');
+  if (id === 'prep') caPopulateSessionPicker();
+}
+
+// ─── Follow-Up Prep: load a previous session's output ──
+function caPopulateSessionPicker() {
+  const sel = document.getElementById('caPrepSessionSelect');
+  if (!sel) return;
+  const sessions = getSessions().filter(s => s.outputs && s.outputs.length);
+  sel.innerHTML = '<option value="">Select a previous session…</option>' +
+    sessions.map((s, i) => `<option value="${i}">${escHtml(s.patientName || 'Unnamed')} — ${escHtml(s.date)} — ${escHtml(s.title)}</option>`).join('');
+  sel._sessions = sessions;
+}
+function caPrepLoadFromSession() {
+  const sel = document.getElementById('caPrepSessionSelect');
+  if (sel.value === '' || !sel._sessions) return;
+  const s = sel._sessions[sel.value];
+  if (!s) return;
+  const combined = s.outputs.map(o => `[${o.type === 'entry' ? 'Entry' : 'Synapse Impression'} — ${o.time}]\n${o.text}`).join('\n\n');
+  document.getElementById('caPrepPrevious').value = combined;
+}
+
+// ─── Consultation Note ──────────────────────────────
+async function generateCaNote() {
+  if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
+  const notes      = document.getElementById('caNoteInput').value.trim();
+  const usePatient = document.getElementById('caNoteUsePatient').checked;
+  const patCtx     = usePatient ? buildPatientContext(collectPatient()) : '';
+  if (!notes) { alert('Please jot down some notes about the consultation first.'); return; }
+
+  const btn    = document.getElementById('caNoteGenBtn');
+  const output = document.getElementById('caNoteOutput');
+  const copyBtn= document.getElementById('caNoteCopyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
+  copyBtn.style.display = 'none';
+  _caNoteRawText = '';
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating consultation note…</div>`;
+
+  const sysPrompt = `You are a documentation assistant for a Malaysian outpatient clinic doctor. Turn the doctor's brief, informal notes into a concise, professional SOAP-format outpatient clinic note (Subjective / Objective / Assessment / Plan). This is a short clinic consultation, not a ward admission — keep it appropriately brief. Use standard clinical abbreviations where natural. Do not invent findings, vitals, or history the doctor did not mention — if a section has nothing to include, write "Not documented" rather than fabricating content.`;
+  const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}DOCTOR'S NOTES:\n${notes}\n\nWrite this up as a structured SOAP clinic note.`;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'HTTP-Referer': location.href },
+      body: JSON.stringify({ model: S.model, messages: [{ role:'system', content: sysPrompt }, { role:'user', content: userPrompt }], temperature: 0.3 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const text = data.choices?.[0]?.message?.content || '';
+    _caNoteRawText = text;
+    output.innerHTML = renderMarkdown(text);
+    copyBtn.style.display = '';
+  } catch(e) {
+    output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/></svg> Generate Note';
+  }
+}
+function caNoteCopy() {
+  const text = _caNoteRawText || document.getElementById('caNoteOutput').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById('caNoteCopyBtn');
+    const orig = b.textContent; b.textContent = '✓ Copied!';
+    setTimeout(() => { b.textContent = orig; }, 1800);
+  });
+}
+
+// ─── Follow-Up Prep ──────────────────────────────────
+async function generateCaPrep() {
+  if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
+  const previous   = document.getElementById('caPrepPrevious').value.trim();
+  const usePatient = document.getElementById('caPrepUsePatient').checked;
+  const patCtx     = usePatient ? buildPatientContext(collectPatient()) : '';
+  if (!previous) { alert('Please paste or load the previous visit note first.'); return; }
+
+  const btn    = document.getElementById('caPrepGenBtn');
+  const output = document.getElementById('caPrepOutput');
+  const copyBtn= document.getElementById('caPrepCopyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
+  copyBtn.style.display = 'none';
+  _caPrepRawText = '';
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Preparing follow-up guide…</div>`;
+
+  const sysPrompt = `You are assisting a Malaysian outpatient clinic doctor preparing for a patient's follow-up visit. Given the patient's previous visit note, produce a structured follow-up prep guide with exactly these three sections:
+1. INTERVAL HISTORY — specific questions to ask about symptom progression, treatment response, medication compliance, side effects, and any new symptoms since the last visit.
+2. PHYSICAL EXAMINATION — which systems and specific signs to check, given the condition described.
+3. EXPECTED FINDINGS — what would be a normal/expected result at this stage (e.g. expected range of motion, healing progress, typical trajectory for this condition), and what findings would be concerning and need escalation.
+Be specific to the condition in the previous note, not generic. Do not invent details about the previous visit beyond what's given.`;
+  const userPrompt = `PREVIOUS VISIT NOTE:\n${previous}\n\n${patCtx ? `TODAY'S PATIENT DATA (if already entered):\n${patCtx}\n\n` : ''}Prepare the follow-up guide.`;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'HTTP-Referer': location.href },
+      body: JSON.stringify({ model: S.model, messages: [{ role:'system', content: sysPrompt }, { role:'user', content: userPrompt }], temperature: 0.35 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const text = data.choices?.[0]?.message?.content || '';
+    _caPrepRawText = text;
+    output.innerHTML = renderMarkdown(text);
+    copyBtn.style.display = '';
+  } catch(e) {
+    output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Prepare Follow-Up';
+  }
+}
+function caPrepCopy() {
+  const text = _caPrepRawText || document.getElementById('caPrepOutput').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById('caPrepCopyBtn');
+    const orig = b.textContent; b.textContent = '✓ Copied!';
+    setTimeout(() => { b.textContent = orig; }, 1800);
+  });
+}
+
+// ─── Consult Summary ─────────────────────────────────
+async function generateCaSummary() {
+  if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
+  const caseDetails = document.getElementById('caSummaryCase').value.trim();
+  const question    = document.getElementById('caSummaryQuestion').value.trim();
+  const usePatient  = document.getElementById('caSummaryUsePatient').checked;
+  const patCtx      = usePatient ? buildPatientContext(collectPatient()) : '';
+  if (!caseDetails) { alert('Please add some case details first.'); return; }
+
+  const btn    = document.getElementById('caSummaryGenBtn');
+  const output = document.getElementById('caSummaryOutput');
+  const copyBtn= document.getElementById('caSummaryCopyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
+  copyBtn.style.display = 'none';
+  _caSummaryRawText = '';
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating consult summary…</div>`;
+
+  const sysPrompt = `You are helping a Malaysian clinic doctor prepare a concise case summary to present to a specialist for informal input — a curbside consult, not a formal referral letter. Structure it tightly with these headings: PRESENTATION (1-2 sentences), KEY FINDINGS (bullet points), WORKING DIAGNOSIS / DIFFERENTIAL, MANAGEMENT SO FAR, QUESTION FOR SPECIALIST. Keep it brief enough to read aloud in under a minute. Do not invent findings not provided.`;
+  const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}CASE DETAILS:\n${caseDetails}\n\n${question ? `QUESTION FOR THE SPECIALIST:\n${question}` : 'No specific question given — infer a sensible one from the case.'}`;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'HTTP-Referer': location.href },
+      body: JSON.stringify({ model: S.model, messages: [{ role:'system', content: sysPrompt }, { role:'user', content: userPrompt }], temperature: 0.3 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const text = data.choices?.[0]?.message?.content || '';
+    _caSummaryRawText = text;
+    output.innerHTML = renderMarkdown(text);
+    copyBtn.style.display = '';
+  } catch(e) {
+    output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> Generate Summary';
+  }
+}
+function caSummaryCopy() {
+  const text = _caSummaryRawText || document.getElementById('caSummaryOutput').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById('caSummaryCopyBtn');
+    const orig = b.textContent; b.textContent = '✓ Copied!';
+    setTimeout(() => { b.textContent = orig; }, 1800);
   });
 }
 
