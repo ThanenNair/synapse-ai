@@ -2103,6 +2103,10 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
 #ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,
 #nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
+.ca-instr-bar{display:flex;align-items:center;gap:.5rem;padding:.5rem .9rem;background:rgba(var(--accent-rgb),.05);border-bottom:1px solid var(--border);flex-shrink:0;}
+.ca-instr-icon{font-size:.85rem;flex-shrink:0;opacity:.8;}
+.ca-instr-input{flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:7px;padding:.4rem .6rem;font-size:.78rem;font-family:'Roboto',sans-serif;color:var(--text);outline:none;transition:border-color .15s;}
+.ca-instr-input:focus{border-color:var(--accent);}
 .ca-tabs{display:flex;gap:.35rem;padding:.55rem .9rem;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ca-tab-btn{padding:.5rem .9rem;border:none;background:transparent;cursor:pointer;border-radius:7px;font-size:.78rem;font-weight:600;color:var(--text-muted);font-family:'Roboto',sans-serif;transition:background .15s,color .15s;}
 .ca-tab-btn.active{background:var(--grad-primary);color:#fff;}
@@ -4628,6 +4632,10 @@ body.dark #app::before{
         <div class="tool-ovl-sub">Outpatient consultation support · Consultation notes · Follow-up prep · Specialist consult summaries</div>
       </div>
       <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
+    </div>
+    <div class="ca-instr-bar">
+      <span class="ca-instr-icon" title="Applied to all three tools below">⚙️</span>
+      <input class="ca-instr-input" id="caCustomPrompt" placeholder="Custom instructions for this tab — e.g. &quot;I am an Orthopedic Hand Team MO. Focus on hand/wrist exams, range of motion, grip strength, nerve and tendon assessment.&quot;" oninput="caSaveCustomPrompt()">
     </div>
     <div class="ca-tabs">
       <button class="ca-tab-btn active" onclick="caSwitchTab('note',this)">📝 Consultation Note</button>
@@ -23837,6 +23845,16 @@ function openClinicAssistant() {
   document.getElementById('clinicAssistantOverlay').style.display = 'flex';
   _closeAllOverlays('clinicAssistantOverlay');
   caPopulateSessionPicker();
+  const cp = document.getElementById('caCustomPrompt');
+  if (cp) cp.value = S.currentUser ? (localStorage.getItem(ukey('clinic_custom_prompt')) || '') : '';
+}
+function caSaveCustomPrompt() {
+  if (!S.currentUser) return;
+  localStorage.setItem(ukey('clinic_custom_prompt'), document.getElementById('caCustomPrompt').value);
+}
+function _caCustomInstr() {
+  const v = document.getElementById('caCustomPrompt').value.trim();
+  return v ? `\n\nThe doctor has given this additional context about their role/focus — tailor your response accordingly: ${v}` : '';
 }
 
 function caSwitchTab(id, btn) {
@@ -23882,7 +23900,7 @@ async function generateCaNote() {
   _caNoteRawText = '';
   output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating consultation note…</div>`;
 
-  const sysPrompt = `You are a documentation assistant for a Malaysian outpatient clinic doctor. Turn the doctor's brief, informal notes into a concise, professional SOAP-format outpatient clinic note (Subjective / Objective / Assessment / Plan). This is a short clinic consultation, not a ward admission — keep it appropriately brief. Use standard clinical abbreviations where natural. Do not invent findings, vitals, or history the doctor did not mention — if a section has nothing to include, write "Not documented" rather than fabricating content.`;
+  const sysPrompt = `You are a documentation assistant for a Malaysian outpatient clinic doctor. Turn the doctor's brief, informal notes into a concise, professional SOAP-format outpatient clinic note (Subjective / Objective / Assessment / Plan). This is a short clinic consultation, not a ward admission — keep it appropriately brief. Use standard clinical abbreviations where natural. Do not invent findings, vitals, or history the doctor did not mention — if a section has nothing to include, write "Not documented" rather than fabricating content.` + _caCustomInstr();
   const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}DOCTOR'S NOTES:\n${notes}\n\nWrite this up as a structured SOAP clinic note.`;
 
   try {
@@ -23934,7 +23952,7 @@ async function generateCaPrep() {
 1. INTERVAL HISTORY — specific questions to ask about symptom progression, treatment response, medication compliance, side effects, and any new symptoms since the last visit.
 2. PHYSICAL EXAMINATION — which systems and specific signs to check, given the condition described.
 3. EXPECTED FINDINGS — what would be a normal/expected result at this stage (e.g. expected range of motion, healing progress, typical trajectory for this condition), and what findings would be concerning and need escalation.
-Be specific to the condition in the previous note, not generic. Do not invent details about the previous visit beyond what's given.`;
+Be specific to the condition in the previous note, not generic. Do not invent details about the previous visit beyond what's given.` + _caCustomInstr();
   const userPrompt = `PREVIOUS VISIT NOTE:\n${previous}\n\n${patCtx ? `TODAY'S PATIENT DATA (if already entered):\n${patCtx}\n\n` : ''}Prepare the follow-up guide.`;
 
   try {
@@ -23983,7 +24001,7 @@ async function generateCaSummary() {
   _caSummaryRawText = '';
   output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating consult summary…</div>`;
 
-  const sysPrompt = `You are helping a Malaysian clinic doctor prepare a concise case summary to present to a specialist for informal input — a curbside consult, not a formal referral letter. Structure it tightly with these headings: PRESENTATION (1-2 sentences), KEY FINDINGS (bullet points), WORKING DIAGNOSIS / DIFFERENTIAL, MANAGEMENT SO FAR, QUESTION FOR SPECIALIST. Keep it brief enough to read aloud in under a minute. Do not invent findings not provided.`;
+  const sysPrompt = `You are helping a Malaysian clinic doctor prepare a concise case summary to present to a specialist for informal input — a curbside consult, not a formal referral letter. Structure it tightly with these headings: PRESENTATION (1-2 sentences), KEY FINDINGS (bullet points), WORKING DIAGNOSIS / DIFFERENTIAL, MANAGEMENT SO FAR, QUESTION FOR SPECIALIST. Keep it brief enough to read aloud in under a minute. Do not invent findings not provided.` + _caCustomInstr();
   const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}CASE DETAILS:\n${caseDetails}\n\n${question ? `QUESTION FOR THE SPECIALIST:\n${question}` : 'No specific question given — infer a sensible one from the case.'}`;
 
   try {
