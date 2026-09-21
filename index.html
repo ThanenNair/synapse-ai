@@ -2110,9 +2110,8 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 .dr-paeds-note{font-size:.7rem;color:var(--text);background:var(--bg2);border-radius:5px;padding:.3rem .5rem;margin-top:.4rem;line-height:1.5;}
 
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
-#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,
+#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,#memoGeneratorOverlay,
 #nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
-#clinicAssistantOverlay .tabs{grid-template-columns:repeat(4,1fr);}
 .ca-instr-bar{display:flex;align-items:center;gap:.55rem;padding:.55rem .9rem;background:rgba(var(--accent-rgb),.05);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ca-instr-icon{color:var(--accent);flex-shrink:0;opacity:.85;}
 .ca-instr-input{flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:7px;padding:.42rem .6rem;font-size:.78rem;font-family:'Roboto',sans-serif;color:var(--text);outline:none;transition:border-color .15s;}
@@ -4653,7 +4652,7 @@ body.dark #app::before{
       <span class="tool-ovl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 011 1v1H8V3a1 1 0 011-1z"/><path d="M8 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-2"/><polyline points="8 13 10.5 13 12 10 13.5 16 15 13 16 13"/></svg></span>
       <div class="tool-ovl-titles">
         <div class="tool-ovl-title">Clinic Assistant</div>
-        <div class="tool-ovl-sub">Outpatient consultation support · Consultation notes · Follow-up prep · Consult summaries · MEMO letters</div>
+        <div class="tool-ovl-sub">Outpatient consultation support · Consultation notes · Follow-up prep · Specialist consult summaries</div>
       </div>
       <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
     </div>
@@ -4765,38 +4764,45 @@ body.dark #app::before{
         </div>
       </div>
 
-      <!-- MEMO GENERATOR -->
-      <div class="panel">
-        <div class="panel-hdr">
-          <div class="panel-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
-          <div class="panel-hdr-text">
-            <div class="panel-title">MEMO Generator</div>
-            <div class="panel-sub">Instruction → formal memo letter</div>
+    </div>
+  </div>
+
+  <!-- ══════════ MEMO GENERATOR (standalone) ══════════ -->
+  <div id="memoGeneratorOverlay">
+    <div class="tool-ovl-hdr">
+      <span class="tool-ovl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+      <div class="tool-ovl-titles">
+        <div class="tool-ovl-title">MEMO Generator</div>
+        <div class="tool-ovl-sub">Instruction → formal memo letter · same AI as Tab 1</div>
+      </div>
+      <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
+    </div>
+    <div class="ca-instr-bar">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ca-instr-icon" style="flex-shrink:0;"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      <input class="ca-instr-input" id="caMemoCustomPrompt" placeholder="Custom instructions — e.g. &quot;Always address memos to the HR department and mention MMC registration.&quot;" oninput="caSaveMemoCustomPrompt()">
+    </div>
+    <div class="tool-ovl-body">
+      <div style="max-width:640px;margin:0 auto;">
+        <div class="ca-card-label">MEMO Instruction</div>
+        <textarea class="ca-textarea" id="caMemoInput" style="min-height:110px;" placeholder="e.g. MEMO for patient to provide to employer mentioning that he will be working from home"></textarea>
+        <label class="ca-checkbox-row">
+          <input type="checkbox" id="caMemoUsePatient" checked>
+          Include current patient data (for diagnosis)
+        </label>
+        <button class="ca-gen-btn" id="caMemoGenBtn" onclick="generateCaMemo()">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          Generate MEMO
+        </button>
+        <div class="ca-panel-output">
+          <div class="ca-output-hdr">
+            <span class="ca-output-title">MEMO</span>
+            <button class="pcom-copy-btn" id="caMemoCopyBtn" onclick="caMemoCopy()" style="display:none;">Copy</button>
           </div>
-        </div>
-        <div class="ca-panel-body">
-          <div class="ca-card-label">MEMO Instruction</div>
-          <textarea class="ca-textarea" id="caMemoInput" style="min-height:100px;" placeholder="e.g. MEMO for patient to provide to employer mentioning that he will be working from home"></textarea>
-          <label class="ca-checkbox-row">
-            <input type="checkbox" id="caMemoUsePatient" checked>
-            Include current patient data (for diagnosis)
-          </label>
-          <button class="ca-gen-btn" id="caMemoGenBtn" onclick="generateCaMemo()">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-            Generate MEMO
-          </button>
-          <div class="ca-panel-output">
-            <div class="ca-output-hdr">
-              <span class="ca-output-title">MEMO</span>
-              <button class="pcom-copy-btn" id="caMemoCopyBtn" onclick="caMemoCopy()" style="display:none;">Copy</button>
-            </div>
-            <div id="caMemoOutput" class="ca-output-body">
-              <div class="ca-output-empty">Describe the MEMO you need, then click <strong>Generate MEMO</strong>.</div>
-            </div>
+          <div id="caMemoOutput" class="ca-output-body">
+            <div class="ca-output-empty">Describe the MEMO you need, then click <strong>Generate MEMO</strong>.</div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 
@@ -5560,6 +5566,7 @@ const SB_TOOLS = [
   { id:'ivcompat',        label:'IV Compatibility',     cat:'procedures',     icon:'<circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/><path d="M11 12h2"/><path d="M5 12H2M19 12h3"/>',                                                                                                                                                                                                                                                                      fn:"openIvCompat()" },
   { id:'handover',        label:'Shift Handover',       cat:'documentation',  icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',                                                                                                                                                                                                                       fn:"openHandover()" },
   { id:'patcomms',        label:'Patient Comms',        cat:'documentation',  icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10z"/>',                                                                                                                                                                                                                              fn:"openPatComms()" },
+  { id:'memogen',         label:'MEMO Generator',       cat:'documentation',  icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',                                                                                                                                                                                                                                                                             fn:"openMemoGenerator()" },
   { id:'acls',            label:'ACLS Navigator',       cat:'protocols',      icon:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',                                                                                                                                                                                                                                                                                                                               fn:"openAcls()" },
   { id:'dengue',          label:'Dengue Protocol',      cat:'protocols',      icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',                                                                                                                                                                                                                                                                                                                           fn:"openDengue()" },
   { id:'iocalc',          label:'I/O Calculator',       cat:'procedures',     icon:'<path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>',                                                                                                                                                                                                                                                                                                                                                                                                            fn:"openIoCalc()" },
@@ -23294,7 +23301,7 @@ function ivCompatRender(id) {
 /* ══════════ CLOSE ALL OVERLAYS (instant, no animation) ══════════ */
 const _OVERLAY_IDS = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
   'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
+  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
   'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
 function _anyOverlayOpen(exceptId) {
   return _OVERLAY_IDS.some(id => {
@@ -23326,7 +23333,7 @@ function goHome() {
   if (typeof nnjClosePLTable === 'function') nnjClosePLTable(true); // Home must always close the threshold table too, never leave it stuck open
   const ids = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
     'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
+    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
     'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -24083,11 +24090,25 @@ function caSummaryCopy() {
   });
 }
 
-// ─── MEMO Generator ──────────────────────────────────
+// ─── MEMO Generator (standalone tool) ────────────────
 let _caMemoRawText = '';
 function _caFormatDateLong(d) {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+function openMemoGenerator() {
+  document.getElementById('memoGeneratorOverlay').style.display = 'flex';
+  _closeAllOverlays('memoGeneratorOverlay');
+  const cp = document.getElementById('caMemoCustomPrompt');
+  if (cp) cp.value = S.currentUser ? (localStorage.getItem(ukey('memo_custom_prompt')) || '') : '';
+}
+function caSaveMemoCustomPrompt() {
+  if (!S.currentUser) return;
+  localStorage.setItem(ukey('memo_custom_prompt'), document.getElementById('caMemoCustomPrompt').value);
+}
+function _caMemoCustomInstr() {
+  const v = document.getElementById('caMemoCustomPrompt').value.trim();
+  return v ? `\n\nThe doctor has given this additional context about their role/focus — tailor your response accordingly: ${v}` : '';
 }
 async function generateCaMemo() {
   if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
@@ -24122,7 +24143,7 @@ Thank you for your kind consideration and cooperation.
 
 Yours sincerely,
 
-Use formal, professional letter language throughout. Match the patient's gender (he/she) if known from the patient information, otherwise use "the patient" or "they". Do not fabricate clinical findings beyond the diagnosis and what the instruction specifies. Leave the line after "Yours sincerely," blank for the doctor's signature — do not invent a name.` + _caCustomInstr();
+Use formal, professional letter language throughout. Match the patient's gender (he/she) if known from the patient information, otherwise use "the patient" or "they". Do not fabricate clinical findings beyond the diagnosis and what the instruction specifies. Leave the line after "Yours sincerely," blank for the doctor's signature — do not invent a name.` + _caMemoCustomInstr();
   const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}DOCTOR'S INSTRUCTION:\n${instruction}\n\nWrite the MEMO.`;
 
   try {
