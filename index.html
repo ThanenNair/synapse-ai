@@ -2116,29 +2116,21 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 .ca-instr-icon{color:var(--accent);flex-shrink:0;opacity:.85;}
 .ca-instr-input{flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:7px;padding:.42rem .6rem;font-size:.78rem;font-family:'Roboto',sans-serif;color:var(--text);outline:none;transition:border-color .15s;}
 .ca-instr-input:focus{border-color:var(--accent);}
-.ca-tabs{display:flex;gap:.4rem;padding:.6rem .9rem;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;}
-.ca-tab-btn{display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border:1.5px solid var(--border);background:var(--card);cursor:pointer;border-radius:8px;font-size:.78rem;font-weight:600;color:var(--text-muted);font-family:'Roboto',sans-serif;transition:background .15s,color .15s,border-color .15s;}
-.ca-tab-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
-.ca-tab-btn.active{background:var(--grad-accent);color:#fff;border-color:transparent;}
-.ca-tab-pane{display:none;flex:1;min-height:0;overflow:hidden;}
-.ca-tab-pane.active{display:flex;flex-direction:column;}
-.ca-pane-scroll{flex:1;overflow-y:auto;padding:1.4rem 1.4rem 3rem;}
-.ca-pane-inner{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:1.1rem;}
-.ca-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.3rem;box-shadow:0 2px 10px var(--shadow);}
-.ca-card-label{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.5rem;}
-.ca-textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-size:.85rem;padding:.6rem .75rem;outline:none;font-family:'Roboto',sans-serif;resize:vertical;line-height:1.6;box-sizing:border-box;transition:border-color .15s;}
+.ca-panel-body{flex:1;min-height:0;overflow-y:auto;padding:.9rem 1rem 1.2rem;display:flex;flex-direction:column;}
+.ca-card-label{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.4rem;}
+.ca-textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-size:.8rem;padding:.55rem .65rem;outline:none;font-family:'Roboto',sans-serif;resize:vertical;line-height:1.55;box-sizing:border-box;transition:border-color .15s;}
 .ca-textarea:focus{border-color:var(--accent);}
 .ca-textarea::placeholder{color:var(--text-muted);}
-.ca-checkbox-row{display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text);cursor:pointer;margin-top:.75rem;}
-.ca-checkbox-row input[type=checkbox]{cursor:pointer;accent-color:var(--accent);width:14px;height:14px;}
-.ca-gen-btn{width:100%;background:var(--grad-accent);color:#fff;border:none;border-radius:10px;padding:.68rem 1rem;font-family:'Roboto',sans-serif;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.5rem;transition:opacity .15s;margin-top:.9rem;}
+.ca-checkbox-row{display:flex;align-items:center;gap:.45rem;font-size:.72rem;color:var(--text);cursor:pointer;margin-top:.6rem;}
+.ca-checkbox-row input[type=checkbox]{cursor:pointer;accent-color:var(--accent);width:13px;height:13px;flex-shrink:0;}
+.ca-gen-btn{width:100%;background:var(--grad-accent);color:#fff;border:none;border-radius:9px;padding:.6rem 1rem;font-family:'Roboto',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.45rem;transition:opacity .15s;margin-top:.8rem;flex-shrink:0;}
 .ca-gen-btn:hover{opacity:.88;}
 .ca-gen-btn:disabled{opacity:.6;cursor:not-allowed;}
-.ca-output-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 2px 10px var(--shadow);}
-.ca-output-hdr{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.1rem;border-bottom:1px solid var(--border);background:var(--bg2);}
-.ca-output-title{font-size:.76rem;font-weight:700;color:var(--primary);}
-.ca-output-body{padding:1.1rem 1.3rem;font-size:.85rem;line-height:1.8;color:var(--text);}
-.ca-output-empty{color:var(--text-muted);opacity:.6;font-size:.8rem;padding:.3rem 0;}
+.ca-panel-output{margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--border);}
+.ca-output-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;}
+.ca-output-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);}
+.ca-output-body{font-size:.8rem;line-height:1.7;color:var(--text);}
+.ca-output-empty{color:var(--text-muted);opacity:.6;font-size:.76rem;}
 .tool-ovl-hdr{background:var(--grad-primary);color:#fff;padding:.85rem 1.2rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .tool-ovl-icon{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .tool-ovl-icon svg{width:18px;height:18px;display:block;stroke:rgba(255,255,255,.88);fill:none;}
@@ -4668,106 +4660,110 @@ body.dark #app::before{
       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ca-instr-icon" style="flex-shrink:0;"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
       <input class="ca-instr-input" id="caCustomPrompt" placeholder="Custom instructions — e.g. &quot;I am an Orthopedic Hand Team MO. Focus on hand/wrist exams, range of motion, grip strength, nerve and tendon assessment.&quot;" oninput="caSaveCustomPrompt()">
     </div>
-    <div class="ca-tabs">
-      <button class="ca-tab-btn active" onclick="caSwitchTab('note',this)">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-        Consultation Note
-      </button>
-      <button class="ca-tab-btn" onclick="caSwitchTab('prep',this)">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-        Follow-Up Prep
-      </button>
-      <button class="ca-tab-btn" onclick="caSwitchTab('summary',this)">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        Consult Summary
-      </button>
-    </div>
+    <div class="tabs">
 
-    <!-- CONSULTATION NOTE -->
-    <div class="ca-tab-pane active" id="ca-tab-note">
-      <div class="ca-pane-scroll"><div class="ca-pane-inner">
-        <div class="ca-card">
+      <!-- CONSULTATION NOTE -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg></div>
+          <div class="panel-hdr-text">
+            <div class="panel-title">Consultation Note</div>
+            <div class="panel-sub">Quick notes → structured SOAP note</div>
+          </div>
+        </div>
+        <div class="ca-panel-body">
           <div class="ca-card-label">Quick Notes</div>
-          <textarea class="ca-textarea" id="caNoteInput" style="min-height:160px;" placeholder="e.g. c/o sore throat 3/7, no fever, no cough. O/E: pharynx injected, no exudate, tonsils not enlarged, no cervical lymphadenopathy. Dx: viral pharyngitis. Plan: symptomatic Rx, safety-net, review if worsens or persists >7d"></textarea>
+          <textarea class="ca-textarea" id="caNoteInput" style="min-height:130px;" placeholder="e.g. c/o sore throat 3/7, no fever, no cough. O/E: pharynx injected, no exudate, tonsils not enlarged. Dx: viral pharyngitis. Plan: symptomatic Rx, safety-net, review if worsens"></textarea>
           <label class="ca-checkbox-row">
             <input type="checkbox" id="caNoteUsePatient" checked>
-            Include current patient data from Patient Information tab
+            Include current patient data
           </label>
           <button class="ca-gen-btn" id="caNoteGenBtn" onclick="generateCaNote()">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Generate Note
           </button>
-        </div>
-        <div class="ca-output-card">
-          <div class="ca-output-hdr">
-            <span class="ca-output-title">SOAP Clinic Note</span>
-            <button class="pcom-copy-btn" id="caNoteCopyBtn" onclick="caNoteCopy()" style="display:none;">Copy</button>
+          <div class="ca-panel-output">
+            <div class="ca-output-hdr">
+              <span class="ca-output-title">SOAP Clinic Note</span>
+              <button class="pcom-copy-btn" id="caNoteCopyBtn" onclick="caNoteCopy()" style="display:none;">Copy</button>
+            </div>
+            <div id="caNoteOutput" class="ca-output-body">
+              <div class="ca-output-empty">Jot down your notes, then click <strong>Generate Note</strong>.</div>
+            </div>
           </div>
-          <div id="caNoteOutput" class="ca-output-body">
-            <div class="ca-output-empty">Jot down your notes from the visit, then click <strong>Generate Note</strong>.</div>
-          </div>
         </div>
-      </div></div>
-    </div>
+      </div>
 
-    <!-- FOLLOW-UP PREP -->
-    <div class="ca-tab-pane" id="ca-tab-prep">
-      <div class="ca-pane-scroll"><div class="ca-pane-inner">
-        <div class="ca-card">
+      <!-- FOLLOW-UP PREP -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></div>
+          <div class="panel-hdr-text">
+            <div class="panel-title">Follow-Up Prep</div>
+            <div class="panel-sub">Previous visit → what to ask, check &amp; expect</div>
+          </div>
+        </div>
+        <div class="ca-panel-body">
           <div class="ca-card-label">Previous Visit</div>
           <div style="display:flex;gap:.4rem;margin-bottom:.6rem;">
             <select class="pcom-select" id="caPrepSessionSelect" style="flex:1;"></select>
             <button class="pcom-action-btn" onclick="caPrepLoadFromSession()">Load</button>
           </div>
-          <textarea class="ca-textarea" id="caPrepPrevious" style="min-height:140px;" placeholder="Paste the patient's previous visit note here, or pick a saved session above and click Load…"></textarea>
+          <textarea class="ca-textarea" id="caPrepPrevious" style="min-height:110px;" placeholder="Paste the previous visit note, or pick a saved session above and click Load…"></textarea>
           <label class="ca-checkbox-row">
             <input type="checkbox" id="caPrepUsePatient">
-            Include today's patient data from Patient Information tab
+            Include today's patient data
           </label>
           <button class="ca-gen-btn" id="caPrepGenBtn" onclick="generateCaPrep()">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
             Prepare Follow-Up
           </button>
-        </div>
-        <div class="ca-output-card">
-          <div class="ca-output-hdr">
-            <span class="ca-output-title">Follow-Up Prep</span>
-            <button class="pcom-copy-btn" id="caPrepCopyBtn" onclick="caPrepCopy()" style="display:none;">Copy</button>
+          <div class="ca-panel-output">
+            <div class="ca-output-hdr">
+              <span class="ca-output-title">Follow-Up Prep</span>
+              <button class="pcom-copy-btn" id="caPrepCopyBtn" onclick="caPrepCopy()" style="display:none;">Copy</button>
+            </div>
+            <div id="caPrepOutput" class="ca-output-body">
+              <div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>
+            </div>
           </div>
-          <div id="caPrepOutput" class="ca-output-body">
-            <div class="ca-output-empty">Load or paste the previous visit note, then click <strong>Prepare Follow-Up</strong> for what to ask, check, and expect.</div>
-          </div>
         </div>
-      </div></div>
-    </div>
+      </div>
 
-    <!-- CONSULT SUMMARY -->
-    <div class="ca-tab-pane" id="ca-tab-summary">
-      <div class="ca-pane-scroll"><div class="ca-pane-inner">
-        <div class="ca-card">
+      <!-- CONSULT SUMMARY -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-icon"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+          <div class="panel-hdr-text">
+            <div class="panel-title">Consult Summary</div>
+            <div class="panel-sub">Case + question → curbside consult summary</div>
+          </div>
+        </div>
+        <div class="ca-panel-body">
           <div class="ca-card-label">Case Details</div>
-          <textarea class="ca-textarea" id="caSummaryCase" style="min-height:120px;" placeholder="Brief case details, key findings, what's been tried so far…"></textarea>
-          <div class="ca-card-label" style="margin-top:.8rem;">Question for the Specialist</div>
-          <textarea class="ca-textarea" id="caSummaryQuestion" style="min-height:56px;" placeholder="e.g. Is this safe to manage in primary care, or does it need urgent referral?"></textarea>
+          <textarea class="ca-textarea" id="caSummaryCase" style="min-height:100px;" placeholder="Brief case details, key findings, what's been tried…"></textarea>
+          <div class="ca-card-label" style="margin-top:.7rem;">Question for the Specialist</div>
+          <textarea class="ca-textarea" id="caSummaryQuestion" style="min-height:50px;" placeholder="e.g. Safe for primary care, or needs urgent referral?"></textarea>
           <label class="ca-checkbox-row">
             <input type="checkbox" id="caSummaryUsePatient" checked>
-            Include current patient data from Patient Information tab
+            Include current patient data
           </label>
           <button class="ca-gen-btn" id="caSummaryGenBtn" onclick="generateCaSummary()">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             Generate Summary
           </button>
-        </div>
-        <div class="ca-output-card">
-          <div class="ca-output-hdr">
-            <span class="ca-output-title">Consult Summary</span>
-            <button class="pcom-copy-btn" id="caSummaryCopyBtn" onclick="caSummaryCopy()" style="display:none;">Copy</button>
+          <div class="ca-panel-output">
+            <div class="ca-output-hdr">
+              <span class="ca-output-title">Consult Summary</span>
+              <button class="pcom-copy-btn" id="caSummaryCopyBtn" onclick="caSummaryCopy()" style="display:none;">Copy</button>
+            </div>
+            <div id="caSummaryOutput" class="ca-output-body">
+              <div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong>.</div>
+            </div>
           </div>
-          <div id="caSummaryOutput" class="ca-output-body">
-            <div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong> for a tight case presentation to read out or send.</div>
-          </div>
         </div>
-      </div></div>
+      </div>
+
     </div>
   </div>
 
@@ -23885,14 +23881,6 @@ function caSaveCustomPrompt() {
 function _caCustomInstr() {
   const v = document.getElementById('caCustomPrompt').value.trim();
   return v ? `\n\nThe doctor has given this additional context about their role/focus — tailor your response accordingly: ${v}` : '';
-}
-
-function caSwitchTab(id, btn) {
-  document.querySelectorAll('.ca-tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.ca-tab-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('ca-tab-' + id).classList.add('active');
-  if (id === 'prep') caPopulateSessionPicker();
 }
 
 // ─── Follow-Up Prep: load a previous session's output ──
