@@ -23983,6 +23983,11 @@ function openClinicAssistant() {
   _closeAllOverlays('clinicAssistantOverlay');
   caMoveChatIn();
   requestAnimationFrame(() => requestAnimationFrame(fixLayout));
+  // Belt-and-suspenders: the moved .chat-input-wrap doesn't always settle to
+  // its real height within 2 rAFs (timing varies), which can leave .messages
+  // sized against a stale reading. A follow-up call a little later corrects
+  // it with no visible flash since nothing's rendered large yet.
+  setTimeout(fixLayout, 250);
   const cp = document.getElementById('caCustomPrompt');
   if (cp) cp.value = S.currentUser ? (localStorage.getItem(ukey('clinic_custom_prompt')) || '') : '';
 }
