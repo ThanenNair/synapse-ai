@@ -6130,10 +6130,11 @@ function updateApiStatus() {
 }
 
 // ─── PATIENT CONTEXT ───────────────────────────────
-// Single banner + toggle: S.chatCtxOn is the master switch controlling whether Tab 1
-// chat combines Tab 2 (patient info) and Tab 3 (generated output) into its context.
-// The banner label just reflects whether that combined context currently has
-// anything in it (toggle on AND at least one of Tab 2 / Tab 3 has content).
+// Single banner + toggle: S.chatCtxOn is the master switch controlling whether
+// the chat combines patient/case context (Tab 2 + Tab 3 on the homescreen;
+// Follow-Up Prep + Consult Summary in Clinic Assistant) into its context. The
+// banner label mirrors the toggle directly — it does not depend on whether
+// there's actually any data to include yet.
 function updateCtx() {
   const data = collectPatient();
   S.hasPatient = Object.values(data).some(v => v && v.trim() !== '');
@@ -6141,12 +6142,10 @@ function updateCtx() {
 }
 
 function renderCtxBanner() {
-  const hasTab3 = document.querySelectorAll('#outputWrap .out-card').length > 0;
-  const active = S.chatCtxOn && (S.hasPatient || hasTab3);
   const banner = document.getElementById('ctxBanner');
-  banner.classList.toggle('on', active);
+  banner.classList.toggle('on', S.chatCtxOn);
   const label = document.getElementById('ctxLabel');
-  if (label) label.textContent = active ? 'Patient Context Active' : 'Patient Context Not Active';
+  if (label) label.textContent = S.chatCtxOn ? 'Patient Context Active' : 'Patient Context Not Active';
   const toggle = document.getElementById('ctxToggle');
   if (toggle) toggle.classList.toggle('on', S.chatCtxOn);
 }
