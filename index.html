@@ -5966,8 +5966,13 @@ function fixLayout() {
   const chatPanel  = chatWrapEl ? chatWrapEl.closest('.panel') : null;
   const chatTabs   = chatPanel ? chatPanel.closest('.tabs') : null;
   if (chatTabs) {
+    // Use .tabs' own rendered height (clientHeight), not window.innerHeight —
+    // .tabs only starts at the very top of the viewport on the homescreen
+    // (no header above it). Clinic Assistant has a ~61px .tool-ovl-hdr above
+    // its .tabs grid, so window.innerHeight overestimated available space
+    // there and pushed the chat input below the visible area.
     const cts = getComputedStyle(chatTabs);
-    const chatPanelH = window.innerHeight - parseFloat(cts.paddingTop) - parseFloat(cts.paddingBottom);
+    const chatPanelH = chatTabs.clientHeight - parseFloat(cts.paddingTop) - parseFloat(cts.paddingBottom);
     if (chatPanelH >= 80) {
       const msgs  = chatPanel.querySelector('.messages');
       const hdr1H = chatPanel.querySelector('.panel-hdr')?.offsetHeight || 0;
@@ -5982,7 +5987,7 @@ function fixLayout() {
   const appTabs = document.querySelector('#app .tabs');
   if (!appTabs) return;
   const ts     = getComputedStyle(appTabs);
-  const panelH = window.innerHeight - parseFloat(ts.paddingTop) - parseFloat(ts.paddingBottom);
+  const panelH = appTabs.clientHeight - parseFloat(ts.paddingTop) - parseFloat(ts.paddingBottom);
   if (panelH < 80) return;
 
   const appPanels = appTabs.querySelectorAll(':scope > .panel');
@@ -16704,9 +16709,14 @@ function stripImagesFromChat(chat) {
 }
 
 function saveCurrentSession() {
-  if (!S.currentUser || !S.sessionId || S.chat.length === 0) return;
-
+  if (!S.currentUser || !S.sessionId) return;
   const d = collectPatient();
+  // Also save when the doctor filled in patient data but never chatted —
+  // otherwise the session (and anything Clinic Assistant/Teaching Points
+  // would summarise from it) is silently dropped.
+  const hasPatientData = Object.values(d).some(v => v && String(v).trim());
+  if (S.chat.length === 0 && !hasPatientData) return;
+
   const patientName = d.pt_name || '';
   const firstUserMsg = S.chat.find(m => m.role === 'user');
   let title;
@@ -24234,7 +24244,7 @@ async function caGenerateTeachingPoints(sessionId) {
   if (!S.apiKey) { caShowToast('Teaching points skipped — no API key configured (Settings ⚙)', true); return; }
   const sessions = getSessions();
   const sess = sessions.find(s => s.id === sessionId);
-  if (!sess) return;
+  if (!sess) { caShowToast('Teaching points skipped — nothing was saved for that patient', true); return; }
 
   const chatText = (sess.messages || [])
     .map(m => `${m.role === 'user' ? 'Doctor' : 'AI'}: ${typeof m.content === 'string' ? m.content : '[attachment]'}`)
@@ -24244,7 +24254,7 @@ async function caGenerateTeachingPoints(sessionId) {
     .map(o => `[${o.type === 'entry' ? 'Clinical Entry' : 'Synapse Impression'}]\n${o.text}`)
     .join('\n\n');
   const hasPatCtx = patCtx && patCtx.replace(/===\s*PATIENT INFORMATION\s*===/i, '').trim();
-  if (!chatText.trim() && !hasPatCtx && !outputsText.trim()) return; // nothing to learn from — skip silently, no toast needed
+  if (!chatText.trim() && !hasPatCtx && !outputsText.trim()) { caShowToast('Teaching points skipped — no chat or patient data for that patient', true); return; }
 
   caShowToast('Generating teaching points in the background…');
   try {
