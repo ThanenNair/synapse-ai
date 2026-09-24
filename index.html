@@ -16684,7 +16684,7 @@ function startNewSession() {
   document.getElementById('chatMessages').innerHTML = `
     <div class="msg ai">
       <div class="msg-av">S</div>
-      <div class="msg-bub">Hello, I'm Synapse AI. I can assist with general medical queries, clinical reasoning, and drug information. Once patient data is entered in the Patient Information tab, I'll automatically incorporate that context into our conversation.<br><br>How can I help you today?</div>
+      <div class="msg-bub">${_caGreetingHtml()}</div>
     </div>`;
 
   // Reset patient form
@@ -24037,11 +24037,29 @@ function caMoveChatIn() {
   const dest = document.getElementById('caChatPanel');
   const chatWrap = document.getElementById('chatWrapMain');
   if (dest && chatWrap && chatWrap.parentElement !== dest) dest.appendChild(chatWrap);
+  _caSyncGreetingToLocation();
 }
 function caMoveChatOut() {
   const home = document.getElementById('tab1ChatPanel');
   const chatWrap = document.getElementById('chatWrapMain');
   if (home && chatWrap && chatWrap.parentElement !== home) home.appendChild(chatWrap);
+  _caSyncGreetingToLocation();
+}
+
+// The chat's default greeting mentions the homescreen's "Patient Information
+// tab" — that doesn't exist as a visible tab inside Clinic Assistant, so the
+// sentence is dropped there and restored on the homescreen. Only touches the
+// untouched default greeting bubble, never a real AI response.
+function _caGreetingHtml() {
+  const inClinicAssistant = document.getElementById('chatWrapMain')?.parentElement?.id === 'caChatPanel';
+  const base = "Hello, I'm Synapse AI. I can assist with general medical queries, clinical reasoning, and drug information.";
+  const patientNote = " Once patient data is entered in the Patient Information tab, I'll automatically incorporate that context into our conversation.";
+  return `${base}${inClinicAssistant ? '' : patientNote}<br><br>How can I help you today?`;
+}
+function _caSyncGreetingToLocation() {
+  const firstBub = document.querySelector('#chatMessages .msg.ai .msg-bub');
+  if (!firstBub || !firstBub.innerHTML.startsWith("Hello, I'm Synapse AI")) return;
+  firstBub.innerHTML = _caGreetingHtml();
 }
 
 function openClinicAssistant() {
@@ -24124,7 +24142,9 @@ async function generateCaPrep() {
   output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Preparing follow-up guide…</div>`;
 
   const elapsedCtx = _caPrepElapsedCtx();
-  const elapsedInstr = elapsedCtx ? `\n\nThe PREVIOUS VISIT NOTE below was written on ${elapsedCtx.lastSeenLabel} — that is ${elapsedCtx.elapsed}, NOT today. Today's date is ${elapsedCtx.todayLabel}. Treat everything in the previous note as having happened on ${elapsedCtx.lastSeenLabel}, and write your guidance for what the doctor should ask and check at TODAY's (${elapsedCtx.todayLabel}) visit — reason explicitly about what should have changed, healed, or progressed over that ${elapsedCtx.elapsed} interval.` : '';
+  const elapsedInstr = elapsedCtx ? `\n\nThe PREVIOUS VISIT NOTE below was written on ${elapsedCtx.lastSeenLabel} — that is ${elapsedCtx.elapsed}, NOT today. Today's date is ${elapsedCtx.todayLabel}. Treat everything in the previous note as having happened on ${elapsedCtx.lastSeenLabel}, and write your guidance for what the doctor should ask and check at TODAY's (${elapsedCtx.todayLabel}) visit — reason explicitly about what should have changed, healed, or progressed over that ${elapsedCtx.elapsed} interval.
+
+CRITICAL — advance any interval stated INSIDE the note by that same elapsed time; never repeat it unchanged. If the note states a duration relative to some event (e.g. "Post Op 6/12", "POD 5", "day 3 of fever", "2/52 since starting antibiotics", gestational age, weeks since a fracture, etc.), that figure was only correct as of ${elapsedCtx.lastSeenLabel}. Add the ${elapsedCtx.elapsed} that has since passed and state the doctor's UPDATED, TODAY-correct figure instead — e.g. if the note says "Post Op 6/12" and the visit was 6 months ago, today the patient is approximately Post Op 1 year (12/12), and your guidance should refer to them as such, not as 6/12 post-op. Show this updated interval explicitly wherever the original note's timing matters to your answer.` : '';
   const sysPrompt = `You are assisting a Malaysian outpatient clinic doctor preparing for a patient's follow-up visit. Given the patient's previous visit note, produce a structured follow-up prep guide with exactly these three sections:
 1. INTERVAL HISTORY — specific questions to ask about symptom progression, treatment response, medication compliance, side effects, and any new symptoms since the last visit.
 2. PHYSICAL EXAMINATION — which systems and specific signs to check, given the condition described.
