@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Synapse AI — Clinical Intelligence Platform</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%20110%20110%27%3E%3Cdefs%3E%3ClinearGradient%20id=%27lg1%27%20x1=%270%27%20y1=%270%27%20x2=%271%27%20y2=%271%27%3E%3Cstop%20offset=%270%27%20stop-color=%27%2306c5d9%27/%3E%3Cstop%20offset=%271%27%20stop-color=%27%231a56db%27/%3E%3C/linearGradient%3E%3ClinearGradient%20id=%27lg2%27%20x1=%270%27%20y1=%271%27%20x2=%271%27%20y2=%270%27%3E%3Cstop%20offset=%270%27%20stop-color=%27%2306d6a0%27/%3E%3Cstop%20offset=%271%27%20stop-color=%27%2306c5d9%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle%20cx=%2755%27%20cy=%2755%27%20r=%2753%27%20fill=%27%230d0e14%27/%3E%3Cpath%20d=%27M15.5%2040.6%20A42%2042%200%201%201%2087.2%2082%27%20stroke=%27url(%23lg1)%27%20stroke-width=%277%27%20stroke-linecap=%27round%27%20fill=%27none%27/%3E%3Cpath%20d=%27M76%2091.4%20A42%2042%200%200%201%2013%2055%27%20stroke=%27url(%23lg2)%27%20stroke-width=%277%27%20stroke-linecap=%27round%27%20fill=%27none%27%20opacity=%27.55%27/%3E%3Ccircle%20cx=%2782.3%27%20cy=%2787.4%27%20r=%273.6%27%20fill=%27%2306d6a0%27/%3E%3Ccircle%20cx=%2713.6%27%20cy=%2747.7%27%20r=%273%27%20fill=%27%2306c5d9%27%20opacity=%27.85%27/%3E%3Cpath%20d=%27M30%2055%20L43%2055%20L50%2038%20L60%2072%20L67%2055%20L80%2055%27%20stroke=%27%23fff%27%20stroke-width=%276.5%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%20fill=%27none%27/%3E%3Ccircle%20cx=%2730%27%20cy=%2755%27%20r=%273.8%27%20fill=%27url(%23lg2)%27/%3E%3Ccircle%20cx=%2780%27%20cy=%2755%27%20r=%273.8%27%20fill=%27url(%23lg2)%27/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -4733,7 +4734,7 @@ body.dark #app::before{
               <button class="pcom-copy-btn" id="caPrepCopyBtn" onclick="caPrepCopy()" style="display:none;">Copy</button>
             </div>
             <div id="caPrepOutput" class="ca-output-body">
-              <div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>
+              <div class="ca-output-empty">Provide the entry, then click <strong>Prepare Follow-Up</strong>.</div>
             </div>
           </div>
         </div>
@@ -7048,10 +7049,38 @@ async function sendChat() {
   const typingEl = addTyping();
 
   const d = collectPatient();
-  // Master toggle (banner switch) gates both Tab 2 and Tab 3 context together.
-  const hasPatient = S.chatCtxOn && Object.values(d).some(v => v && v.trim());
+  const hasPatientTab2 = Object.values(d).some(v => v && v.trim());
 
-  const customAddition = S.customPrompt ? `\n\nAdditional instructions from the clinician: ${S.customPrompt}` : '';
+  // The Synapse AI Chat panel is the same #chatWrapMain wherever it lives —
+  // when it's inside Clinic Assistant, the context toggle and custom
+  // instructions behave differently: the toggle also pulls in Follow-Up Prep
+  // / Consult Summary, and the custom instruction comes from Clinic
+  // Assistant's own settings rather than the homescreen's.
+  const inClinicAssistant = document.getElementById('chatWrapMain')?.parentElement?.id === 'caChatPanel';
+
+  // ── Clinic Assistant's other tabs (Follow-Up Prep / Consult Summary) —
+  //    only pulled in when the chat is inside Clinic Assistant AND the
+  //    context toggle is on ──
+  let caToolsContext = '';
+  if (inClinicAssistant && S.chatCtxOn) {
+    const prepPrev = document.getElementById('caPrepPrevious')?.value.trim() || '';
+    const prepOut  = (_caPrepRawText || '').trim();
+    const sumCase  = document.getElementById('caSummaryCase')?.value.trim() || '';
+    const sumQ     = document.getElementById('caSummaryQuestion')?.value.trim() || '';
+    const sumOut   = (_caSummaryRawText || '').trim();
+    const parts = [];
+    if (prepPrev || prepOut) parts.push(`FOLLOW-UP PREP\n${prepPrev ? `Previous visit note: ${prepPrev}\n` : ''}${prepOut ? `Generated follow-up guide:\n${prepOut}` : ''}`.trim());
+    if (sumCase || sumQ || sumOut) parts.push(`CONSULT SUMMARY\n${sumCase ? `Case details: ${sumCase}\n` : ''}${sumQ ? `Question for specialist: ${sumQ}\n` : ''}${sumOut ? `Generated consult summary:\n${sumOut}` : ''}`.trim());
+    if (parts.length) caToolsContext = `\n\n━━ CLINIC ASSISTANT — OTHER TABS ━━\nThe doctor already has the following entered/generated in this patient's other Clinic Assistant tabs — use it as context and stay consistent with it.\n\n${parts.join('\n\n')}`;
+  }
+
+  // Master toggle (banner switch) gates Tab 2 / Tab 3 / Clinic Assistant tool context together.
+  const hasPatient = S.chatCtxOn && (hasPatientTab2 || !!caToolsContext);
+  const patientContextBlock = hasPatientTab2 ? `\n\nPatient context:\n${buildPatientContext(d)}` : '';
+
+  const customAddition = inClinicAssistant
+    ? _caCustomInstr()
+    : (S.customPrompt ? `\n\nAdditional instructions from the clinician: ${S.customPrompt}` : '');
 
   // ── Tab 3 (Generated Output) context — lets the user ask follow-up questions
   //    about an Entry/Synapse impression they already generated ──
@@ -7100,9 +7129,7 @@ When discussing clinical problems, provide comprehensive answers covering:
 
 Source non-management content from credible evidence-based sources only: peer-reviewed journals (NEJM, Lancet, BMJ, JAMA), established textbooks (Harrison's Principles of Internal Medicine, Davidson's Principles and Practice of Medicine), UpToDate, BMJ Best Practice, Medscape, WHO, and major society guidelines. Do not cite blogs, non-peer-reviewed websites, or unverified sources.
 
-Formatting: Use numbered lists, bullet points, and section headings for clarity. Avoid markdown pipe tables — instead present comparisons and options as numbered or bulleted lists with clear labels.
-
-Patient context:\n${buildPatientContext(d)}`
+Formatting: Use numbered lists, bullet points, and section headings for clarity. Avoid markdown pipe tables — instead present comparisons and options as numbered or bulleted lists with clear labels.${patientContextBlock}`
     : `You are Synapse AI, a comprehensive clinical assistant for Malaysian doctors.
 
 For every medical or clinical question, provide a well-rounded response covering all relevant dimensions:
@@ -7121,7 +7148,7 @@ Source information exclusively from credible, peer-reviewed, or authoritative so
 Formatting: Use numbered lists, bullet points, and section headings for clarity. Avoid markdown pipe tables — instead present comparisons and options as numbered or bulleted lists with clear labels.
 
 Always recommend consulting senior clinicians for patient-specific decisions.`)
-    + customAddition + tab3Context + imgContext;
+    + customAddition + tab3Context + caToolsContext + imgContext;
 
   // Auto-switch to vision-capable model if current model doesn't support images
   const hasImageInHistory = S.chat.some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'image_url'));
@@ -16907,13 +16934,13 @@ function loadSession(sessionId) {
     if (prepIn) prepIn.value = sess.caPrep.previous || '';
     if (prepDate) prepDate.value = sess.caPrep.lastSeenDate || '';
     _caPrepRawText = sess.caPrep.output || '';
-    if (prepOut) prepOut.innerHTML = _caPrepRawText ? renderMarkdown(_caPrepRawText) : '<div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>';
+    if (prepOut) prepOut.innerHTML = _caPrepRawText ? renderMarkdown(_caPrepRawText) : '<div class="ca-output-empty">Provide the entry, then click <strong>Prepare Follow-Up</strong>.</div>';
     if (prepCopyBtn) prepCopyBtn.style.display = _caPrepRawText ? '' : 'none';
   } else {
     if (prepIn) prepIn.value = '';
     if (prepDate) prepDate.value = '';
     _caPrepRawText = '';
-    if (prepOut) prepOut.innerHTML = '<div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>';
+    if (prepOut) prepOut.innerHTML = '<div class="ca-output-empty">Provide the entry, then click <strong>Prepare Follow-Up</strong>.</div>';
     if (prepCopyBtn) prepCopyBtn.style.display = 'none';
   }
   const sumCase = document.getElementById('caSummaryCase');
@@ -24142,15 +24169,17 @@ async function generateCaPrep() {
   output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Preparing follow-up guide…</div>`;
 
   const elapsedCtx = _caPrepElapsedCtx();
-  const elapsedInstr = elapsedCtx ? `\n\nThe PREVIOUS VISIT NOTE below was written on ${elapsedCtx.lastSeenLabel} — that is ${elapsedCtx.elapsed}, NOT today. Today's date is ${elapsedCtx.todayLabel}. Treat everything in the previous note as having happened on ${elapsedCtx.lastSeenLabel}, and write your guidance for what the doctor should ask and check at TODAY's (${elapsedCtx.todayLabel}) visit — reason explicitly about what should have changed, healed, or progressed over that ${elapsedCtx.elapsed} interval.
+  const elapsedInstr = elapsedCtx
+    ? `\n\nThe PREVIOUS VISIT NOTE below was written on ${elapsedCtx.lastSeenLabel} — that is ${elapsedCtx.elapsed}, NOT today. Today's date is ${elapsedCtx.todayLabel}. Treat everything in the previous note as having happened on ${elapsedCtx.lastSeenLabel}, and write your guidance for what the doctor should ask and check at TODAY's (${elapsedCtx.todayLabel}) visit — reason explicitly about what should have changed, healed, or progressed over that ${elapsedCtx.elapsed} interval.
 
-CRITICAL — advance any interval stated INSIDE the note by that same elapsed time; never repeat it unchanged. If the note states a duration relative to some event (e.g. "Post Op 6/12", "POD 5", "day 3 of fever", "2/52 since starting antibiotics", gestational age, weeks since a fracture, etc.), that figure was only correct as of ${elapsedCtx.lastSeenLabel}. Add the ${elapsedCtx.elapsed} that has since passed and state the doctor's UPDATED, TODAY-correct figure instead — e.g. if the note says "Post Op 6/12" and the visit was 6 months ago, today the patient is approximately Post Op 1 year (12/12), and your guidance should refer to them as such, not as 6/12 post-op. Show this updated interval explicitly wherever the original note's timing matters to your answer.` : '';
+CRITICAL — advance any interval stated INSIDE the note by that same elapsed time; never repeat it unchanged. If the note states a duration relative to some event (e.g. "Post Op 6/12", "POD 5", "day 3 of fever", "2/52 since starting antibiotics", gestational age, weeks since a fracture, etc.), that figure was only correct as of ${elapsedCtx.lastSeenLabel}. Add the ${elapsedCtx.elapsed} that has since passed and state the doctor's UPDATED, TODAY-correct figure instead — e.g. if the note says "Post Op 6/12" and the visit was 6 months ago, today the patient is approximately Post Op 1 year (12/12), and your guidance should refer to them as such, not as 6/12 post-op. Show this updated interval explicitly wherever the original note's timing matters to your answer.`
+    : `\n\nNo "Patient Last Seen" date was given — assume the previous visit note below is from TODAY'S (${_caFormatDateLong(new Date())}) review, i.e. no time has passed since it was written. Do not invent or assume any elapsed interval.`;
   const sysPrompt = `You are assisting a Malaysian outpatient clinic doctor preparing for a patient's follow-up visit. Given the patient's previous visit note, produce a structured follow-up prep guide with exactly these three sections:
 1. INTERVAL HISTORY — specific questions to ask about symptom progression, treatment response, medication compliance, side effects, and any new symptoms since the last visit.
 2. PHYSICAL EXAMINATION — which systems and specific signs to check, given the condition described.
 3. EXPECTED FINDINGS — what would be a normal/expected result at this stage (e.g. expected range of motion, healing progress, typical trajectory for this condition), and what findings would be concerning and need escalation.
 Be specific to the condition in the previous note, not generic. Do not invent details about the previous visit beyond what's given.${elapsedInstr}` + _caCustomInstr();
-  const userPrompt = `PREVIOUS VISIT NOTE${elapsedCtx ? ` (written ${elapsedCtx.lastSeenLabel}, ${elapsedCtx.elapsed})` : ''}:\n${previous}\n\n${patCtx ? `TODAY'S PATIENT DATA (if already entered):\n${patCtx}\n\n` : ''}Prepare the follow-up guide for today${elapsedCtx ? ` (${elapsedCtx.todayLabel})` : ''}.`;
+  const userPrompt = `PREVIOUS VISIT NOTE${elapsedCtx ? ` (written ${elapsedCtx.lastSeenLabel}, ${elapsedCtx.elapsed})` : ` (assume written today, ${_caFormatDateLong(new Date())})`}:\n${previous}\n\n${patCtx ? `TODAY'S PATIENT DATA (if already entered):\n${patCtx}\n\n` : ''}Prepare the follow-up guide for today${elapsedCtx ? ` (${elapsedCtx.todayLabel})` : ''}.`;
 
   try {
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -24558,7 +24587,7 @@ function caResetTools() {
   const prepAgo = document.getElementById('caPrepAgoValue'); if (prepAgo) prepAgo.value = '';
   const sumCase = document.getElementById('caSummaryCase'); if (sumCase) sumCase.value = '';
   const sumQ = document.getElementById('caSummaryQuestion'); if (sumQ) sumQ.value = '';
-  const prepOut = document.getElementById('caPrepOutput'); if (prepOut) prepOut.innerHTML = '<div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>';
+  const prepOut = document.getElementById('caPrepOutput'); if (prepOut) prepOut.innerHTML = '<div class="ca-output-empty">Provide the entry, then click <strong>Prepare Follow-Up</strong>.</div>';
   const sumOut = document.getElementById('caSummaryOutput'); if (sumOut) sumOut.innerHTML = '<div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong>.</div>';
   ['caPrepCopyBtn','caSummaryCopyBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   _caPrepRawText = ''; _caSummaryRawText = '';
