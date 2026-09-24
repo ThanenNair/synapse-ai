@@ -661,6 +661,18 @@ body.dark .ctx-banner-row{border-bottom-color:var(--border);}
 .fsec-body.col1{grid-template-columns:1fr;}
 .fsec-body.hidden{display:none;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+.ca-tp-del-btn{
+  width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border);
+  background:#fff;color:var(--text-muted);cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.ca-tp-del-btn:hover{border-color:var(--danger);color:var(--danger);background:rgba(220,38,38,.08);}
+.ca-tp-count{
+  font-size:.68rem;font-weight:700;color:var(--text-muted);
+  background:var(--bg2);border-radius:99px;padding:.1rem .55rem;
+}
 /* ═══════════════════════════════════════════════════════════════
    SHIFT HANDOVER GENERATOR
 ════════════════════════════════════════════════════════════════ */
@@ -16779,6 +16791,20 @@ function saveCurrentSession() {
     };
   }
 
+  // Capture Clinic Assistant's own tool state (Follow-Up Prep / Consult
+  // Summary) — these live outside the normal chat/outputs, but a patient
+  // may be handled entirely through these two tools with no Tab 1 chat or
+  // Tab 3 homescreen output at all, so Teaching Points needs them directly.
+  const caPrepPrevious   = (document.getElementById('caPrepPrevious')?.value || '').trim();
+  const caPrepLastSeen   = document.getElementById('caPrepLastSeenDate')?.value || '';
+  const caPrepOutText    = (_caPrepRawText || '').trim();
+  const caPrep = (caPrepPrevious || caPrepOutText) ? { previous: caPrepPrevious, lastSeenDate: caPrepLastSeen, output: caPrepOutText } : null;
+
+  const caSummaryCase    = (document.getElementById('caSummaryCase')?.value || '').trim();
+  const caSummaryQ       = (document.getElementById('caSummaryQuestion')?.value || '').trim();
+  const caSummaryOutText = (_caSummaryRawText || '').trim();
+  const caSummary = (caSummaryCase || caSummaryOutText) ? { caseDetails: caSummaryCase, question: caSummaryQ, output: caSummaryOutText } : null;
+
   const sessions = getSessions();
   const idx = sessions.findIndex(s => s.id === S.sessionId);
   const sess = {
@@ -16788,7 +16814,9 @@ function saveCurrentSession() {
     messages: stripImagesFromChat(S.chat),
     patientData: d,
     outputs,
-    refLetter
+    refLetter,
+    caPrep,
+    caSummary
   };
   if (idx >= 0) sessions[idx] = sess; else sessions.unshift(sess);
   saveSessions(sessions.slice(0, 60));
@@ -16866,6 +16894,44 @@ function loadSession(sessionId) {
     document.getElementById('refUrgency').value = 'Routine';
     document.getElementById('refNotes').value   = '';
     refBody.innerHTML = refPlaceholder;
+  }
+
+  // Restore Clinic Assistant's Follow-Up Prep / Consult Summary tool state
+  // (saved in saveCurrentSession) so switching back to a patient doesn't
+  // leave the previous patient's notes showing in those fields.
+  const prepIn = document.getElementById('caPrepPrevious');
+  const prepDate = document.getElementById('caPrepLastSeenDate');
+  const prepOut = document.getElementById('caPrepOutput');
+  const prepCopyBtn = document.getElementById('caPrepCopyBtn');
+  if (sess.caPrep) {
+    if (prepIn) prepIn.value = sess.caPrep.previous || '';
+    if (prepDate) prepDate.value = sess.caPrep.lastSeenDate || '';
+    _caPrepRawText = sess.caPrep.output || '';
+    if (prepOut) prepOut.innerHTML = _caPrepRawText ? renderMarkdown(_caPrepRawText) : '<div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>';
+    if (prepCopyBtn) prepCopyBtn.style.display = _caPrepRawText ? '' : 'none';
+  } else {
+    if (prepIn) prepIn.value = '';
+    if (prepDate) prepDate.value = '';
+    _caPrepRawText = '';
+    if (prepOut) prepOut.innerHTML = '<div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>';
+    if (prepCopyBtn) prepCopyBtn.style.display = 'none';
+  }
+  const sumCase = document.getElementById('caSummaryCase');
+  const sumQ = document.getElementById('caSummaryQuestion');
+  const sumOut = document.getElementById('caSummaryOutput');
+  const sumCopyBtn = document.getElementById('caSummaryCopyBtn');
+  if (sess.caSummary) {
+    if (sumCase) sumCase.value = sess.caSummary.caseDetails || '';
+    if (sumQ) sumQ.value = sess.caSummary.question || '';
+    _caSummaryRawText = sess.caSummary.output || '';
+    if (sumOut) sumOut.innerHTML = _caSummaryRawText ? renderMarkdown(_caSummaryRawText) : '<div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong>.</div>';
+    if (sumCopyBtn) sumCopyBtn.style.display = _caSummaryRawText ? '' : 'none';
+  } else {
+    if (sumCase) sumCase.value = '';
+    if (sumQ) sumQ.value = '';
+    _caSummaryRawText = '';
+    if (sumOut) sumOut.innerHTML = '<div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong>.</div>';
+    if (sumCopyBtn) sumCopyBtn.style.display = 'none';
   }
 
   updateCtx();
@@ -24287,19 +24353,30 @@ async function caGenerateTeachingPoints(sessionId) {
   const sess = sessions.find(s => s.id === sessionId);
   if (!sess) { caShowToast('Teaching points skipped — nothing was saved for that patient', true); return; }
 
+  // Primary sources: the Clinic Assistant's own 3 tabs — the patient may
+  // have been handled entirely through Follow-Up Prep / Consult Summary
+  // with no Tab 1 chat or homescreen Tab 3 output at all.
   const chatText = (sess.messages || [])
     .map(m => `${m.role === 'user' ? 'Doctor' : 'AI'}: ${typeof m.content === 'string' ? m.content : '[attachment]'}`)
     .join('\n');
+  const prepText = sess.caPrep
+    ? `Previous visit note given${sess.caPrep.lastSeenDate ? ` (last seen ${sess.caPrep.lastSeenDate})` : ''}:\n${sess.caPrep.previous || '(none)'}${sess.caPrep.output ? `\n\nGenerated follow-up prep guide:\n${sess.caPrep.output}` : ''}`
+    : '';
+  const summaryText = sess.caSummary
+    ? `Case details:\n${sess.caSummary.caseDetails || '(none)'}${sess.caSummary.question ? `\n\nQuestion for specialist:\n${sess.caSummary.question}` : ''}${sess.caSummary.output ? `\n\nGenerated consult summary:\n${sess.caSummary.output}` : ''}`
+    : '';
+
+  // Supplementary: homescreen Tab 2 patient data and Tab 3 outputs, when present.
   const patCtx = sess.patientData ? buildPatientContext(sess.patientData) : '';
   const outputsText = (sess.outputs || [])
     .map(o => `[${o.type === 'entry' ? 'Clinical Entry' : 'Synapse Impression'}]\n${o.text}`)
     .join('\n\n');
   const hasPatCtx = patCtx && patCtx.replace(/===\s*PATIENT INFORMATION\s*===/i, '').trim();
-  if (!chatText.trim() && !hasPatCtx && !outputsText.trim()) { caShowToast('Teaching points skipped — no chat or patient data for that patient', true); return; }
+  if (!chatText.trim() && !prepText.trim() && !summaryText.trim() && !hasPatCtx && !outputsText.trim()) { caShowToast('Teaching points skipped — no chat or patient data for that patient', true); return; }
 
   caShowToast('Generating teaching points in the background…');
   try {
-    const userPrompt = `PATIENT INFORMATION:\n${patCtx || '(none entered)'}\n\nCONSULTATION CHAT:\n${chatText || '(none)'}\n\nGENERATED CLINICAL ENTRIES:\n${outputsText || '(none)'}\n\nGenerate the teaching points for this encounter.`;
+    const userPrompt = `PATIENT INFORMATION:\n${patCtx || '(none entered)'}\n\nSYNAPSE AI CHAT (Clinic Assistant Tab 1):\n${chatText || '(none)'}\n\nFOLLOW-UP PREP (Clinic Assistant Tab 2):\n${prepText || '(none)'}\n\nCONSULT SUMMARY (Clinic Assistant Tab 3):\n${summaryText || '(none)'}\n\nGENERATED CLINICAL ENTRIES (homescreen):\n${outputsText || '(none)'}\n\nGenerate the teaching points for this encounter.`;
 
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -24361,7 +24438,7 @@ async function generateCaTeachingFromNote() {
     const { title, text } = _caParseTeachingResponse(raw);
 
     const manual = _caGetManualTeaching();
-    manual.unshift({ title, text, patientName: '', date: _caFormatDateLong(new Date()), generatedAt: Date.now(), manual: true });
+    manual.unshift({ id: 'manual_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), title, text, patientName: '', date: _caFormatDateLong(new Date()), generatedAt: Date.now(), manual: true });
     _caSaveManualTeaching(manual);
     document.getElementById('caTeachNoteInput').value = '';
     caRenderTeachingPointsList();
@@ -24379,28 +24456,68 @@ function openTeachingPoints() {
   _closeAllOverlays('teachingPointsOverlay');
   caRenderTeachingPointsList();
 }
+function caDeleteTeachingPoint(srcType, srcId) {
+  if (!confirm('Delete this teaching point? This cannot be undone.')) return;
+  if (srcType === 'session') {
+    const sessions = getSessions();
+    const idx = sessions.findIndex(s => s.id === srcId);
+    if (idx >= 0) { delete sessions[idx].teachingPoints; saveSessions(sessions); }
+  } else {
+    const manual = _caGetManualTeaching().filter(m => String(m.id || m.generatedAt) !== srcId);
+    _caSaveManualTeaching(manual);
+  }
+  caRenderTeachingPointsList();
+}
 function caRenderTeachingPointsList() {
   const wrap = document.getElementById('caTeachList');
   if (!wrap) return;
   const fromSessions = getSessions()
     .filter(s => s.teachingPoints && s.teachingPoints.text)
-    .map(s => s.teachingPoints);
-  const manual = _caGetManualTeaching();
+    .map(s => Object.assign({}, s.teachingPoints, { _srcType: 'session', _srcId: s.id }));
+  const manual = _caGetManualTeaching()
+    .map(m => Object.assign({}, m, { _srcType: 'manual', _srcId: String(m.id || m.generatedAt) }));
   const all = fromSessions.concat(manual);
   all.sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0));
   if (!all.length) {
     wrap.innerHTML = `<div class="ca-output-empty" style="padding:2rem 0;text-align:center;">No teaching points yet — they're generated automatically whenever you start or switch to a new patient, or you can add a note above for a case you didn't personally see.</div>`;
     return;
   }
-  wrap.innerHTML = all.map(tp => {
-    const label = `${escHtml(tp.title)}${tp.patientName ? ' — ' + escHtml(tp.patientName) : ''} — ${escHtml(tp.date || '')}${tp.manual ? ' · manual note' : ''}`;
+
+  // Group by the calendar day each teaching point was generated
+  const groups = new Map();
+  all.forEach(tp => {
+    const d = tp.generatedAt ? new Date(tp.generatedAt) : new Date();
+    const dayKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    if (!groups.has(dayKey)) groups.set(dayKey, { label: _caFormatDateLong(d), items: [] });
+    groups.get(dayKey).items.push(tp);
+  });
+  const dayKeys = Array.from(groups.keys()).sort().reverse();
+
+  wrap.innerHTML = dayKeys.map(dayKey => {
+    const g = groups.get(dayKey);
+    const itemsHtml = g.items.map(tp => {
+      const label = `${escHtml(tp.title)}${tp.patientName ? ' — ' + escHtml(tp.patientName) : ''}${tp.manual ? ' · manual note' : ''}`;
+      return `
+        <div class="fsec" style="margin-bottom:.5rem;">
+          <div class="fsec-hdr" onclick="toggleSec(this)">
+            <div class="fsec-title">🩺 ${label}</div>
+            <div style="display:flex;align-items:center;gap:.55rem;">
+              <button class="ca-tp-del-btn" onclick="event.stopPropagation();caDeleteTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Delete this teaching point">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+              <span class="chev">▾</span>
+            </div>
+          </div>
+          <div class="fsec-body col1 hidden">${renderMarkdown(tp.text)}</div>
+        </div>`;
+    }).join('');
     return `
-      <div class="fsec">
+      <div class="fsec ca-tp-daygroup" style="margin-bottom:.6rem;">
         <div class="fsec-hdr" onclick="toggleSec(this)">
-          <div class="fsec-title">🩺 ${label}</div>
+          <div class="fsec-title">📅 ${escHtml(g.label)} <span class="ca-tp-count">${g.items.length}</span></div>
           <span class="chev">▾</span>
         </div>
-        <div class="fsec-body col1 hidden">${renderMarkdown(tp.text)}</div>
+        <div class="fsec-body col1 hidden">${itemsHtml}</div>
       </div>`;
   }).join('');
 }
