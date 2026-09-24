@@ -4698,11 +4698,19 @@ body.dark #app::before{
         </div>
         <div class="ca-panel-body">
           <div class="ca-card-label">Previous Visit</div>
-          <div style="display:flex;gap:.4rem;margin-bottom:.6rem;">
-            <select class="pcom-select" id="caPrepSessionSelect" style="flex:1;"></select>
-            <button class="pcom-action-btn" onclick="caPrepLoadFromSession()">Load</button>
+          <textarea class="ca-textarea" id="caPrepPrevious" style="min-height:110px;" placeholder="Paste the previous visit note…"></textarea>
+          <div class="ca-card-label" style="margin-top:.7rem;">Patient Last Seen</div>
+          <div style="display:flex;gap:.4rem;margin-bottom:.6rem;flex-wrap:wrap;align-items:center;">
+            <input type="date" class="pcom-select" id="caPrepLastSeenDate" style="flex:1;min-width:150px;" onchange="caPrepDateChanged()" title="Date of the previous visit">
+            <span style="font-size:.7rem;color:var(--text-muted);">or</span>
+            <input type="number" min="1" step="1" class="pcom-select" id="caPrepAgoValue" placeholder="e.g. 3" style="width:64px;" oninput="caPrepAgoChanged()" title="How long ago">
+            <select class="pcom-select" id="caPrepAgoUnit" style="width:104px;" onchange="caPrepAgoChanged()">
+              <option value="days">days ago</option>
+              <option value="weeks" selected>weeks ago</option>
+              <option value="months">months ago</option>
+              <option value="years">years ago</option>
+            </select>
           </div>
-          <textarea class="ca-textarea" id="caPrepPrevious" style="min-height:110px;" placeholder="Paste the previous visit note, or pick a saved session above and click Load…"></textarea>
           <button class="ca-gen-btn" id="caPrepGenBtn" onclick="generateCaPrep()">
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
             Prepare Follow-Up
@@ -6017,6 +6025,18 @@ window.addEventListener('resize', _fixLayoutRAF);
 window.addEventListener('orientationchange', () => setTimeout(fixLayout, 300));
 requestAnimationFrame(() => requestAnimationFrame(fixLayout));
 setTimeout(fixLayout, 150);
+
+// #chatWrapMain moves between the homescreen and Clinic Assistant (see
+// caMoveChatIn/caMoveChatOut). Its .chat-input-wrap can settle to its real
+// height a moment after the move's own rAF-scheduled fixLayout() runs, which
+// left .messages sized against a stale (too-small) input-wrap reading. Watch
+// the element directly so any late resize re-runs fixLayout with the real
+// numbers, regardless of what caused the timing gap.
+(function(){
+  if (typeof ResizeObserver === 'undefined') return;
+  const ciw = document.querySelector('#chatWrapMain .chat-input-wrap');
+  if (ciw) new ResizeObserver(_fixLayoutRAF).observe(ciw);
+})();
 
 // ─── SECTION TOGGLE ────────────────────────────────
 function toggleSec(hdr) {
@@ -23961,7 +23981,6 @@ function caMoveChatOut() {
 function openClinicAssistant() {
   document.getElementById('clinicAssistantOverlay').style.display = 'flex';
   _closeAllOverlays('clinicAssistantOverlay');
-  caPopulateSessionPicker();
   caMoveChatIn();
   requestAnimationFrame(() => requestAnimationFrame(fixLayout));
   const cp = document.getElementById('caCustomPrompt');
@@ -23983,24 +24002,39 @@ function _caCustomInstr() {
   return v ? `\n\nThe doctor has given this additional context about their role/focus — tailor your response accordingly: ${v}` : '';
 }
 
-// ─── Follow-Up Prep: load a previous session's output ──
-function caPopulateSessionPicker() {
-  const sel = document.getElementById('caPrepSessionSelect');
-  if (!sel) return;
-  const sessions = getSessions().filter(s => s.outputs && s.outputs.length);
-  sel.innerHTML = '<option value="">Select a previous session…</option>' +
-    sessions.map((s, i) => `<option value="${i}">${escHtml(s.patientName || 'Unnamed')} — ${escHtml(s.date)} — ${escHtml(s.title)}</option>`).join('');
-  sel._sessions = sessions;
+// ─── Follow-Up Prep: "patient last seen" date, synced with the
+//     weeks/months/years-ago calculator (the date field is the source
+//     of truth generateCaPrep() reads; the ago fields just write into it) ──
+function caPrepAgoChanged() {
+  const val = parseFloat(document.getElementById('caPrepAgoValue').value);
+  if (!val || val <= 0) return;
+  const unit = document.getElementById('caPrepAgoUnit').value;
+  const d = new Date();
+  if (unit === 'days') d.setDate(d.getDate() - Math.round(val));
+  else if (unit === 'weeks') d.setDate(d.getDate() - Math.round(val * 7));
+  else if (unit === 'months') d.setMonth(d.getMonth() - Math.round(val));
+  else if (unit === 'years') d.setFullYear(d.getFullYear() - Math.round(val));
+  document.getElementById('caPrepLastSeenDate').value = d.toISOString().slice(0, 10);
 }
-function caPrepLoadFromSession() {
-  const sel = document.getElementById('caPrepSessionSelect');
-  if (sel.value === '' || !sel._sessions) return;
-  const s = sel._sessions[sel.value];
-  if (!s) return;
-  const combined = s.outputs.map(o => `[${o.type === 'entry' ? 'Entry' : 'Synapse Impression'} — ${o.time}]\n${o.text}`).join('\n\n');
-  document.getElementById('caPrepPrevious').value = combined;
+function caPrepDateChanged() {
+  document.getElementById('caPrepAgoValue').value = '';
 }
-
+function _caPrepElapsedCtx() {
+  const val = document.getElementById('caPrepLastSeenDate').value;
+  if (!val) return null;
+  const lastSeen = new Date(val + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today - lastSeen) / 86400000);
+  let elapsed;
+  if (diffDays < 0) elapsed = 'in the future — please check the date entered';
+  else if (diffDays === 0) elapsed = 'today';
+  else if (diffDays === 1) elapsed = '1 day ago';
+  else if (diffDays < 14) elapsed = `${diffDays} days ago`;
+  else if (diffDays < 60) elapsed = `${Math.round(diffDays / 7)} weeks ago`;
+  else if (diffDays < 730) elapsed = `${Math.round(diffDays / 30)} months ago`;
+  else elapsed = `${(diffDays / 365).toFixed(1)} years ago`;
+  return { lastSeenLabel: lastSeen.toDateString(), todayLabel: today.toDateString(), elapsed };
+}
 
 // ─── Follow-Up Prep ──────────────────────────────────
 async function generateCaPrep() {
@@ -24018,12 +24052,14 @@ async function generateCaPrep() {
   _caPrepRawText = '';
   output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Preparing follow-up guide…</div>`;
 
+  const elapsedCtx = _caPrepElapsedCtx();
+  const elapsedInstr = elapsedCtx ? `\n\nThe PREVIOUS VISIT NOTE below was written on ${elapsedCtx.lastSeenLabel} — that is ${elapsedCtx.elapsed}, NOT today. Today's date is ${elapsedCtx.todayLabel}. Treat everything in the previous note as having happened on ${elapsedCtx.lastSeenLabel}, and write your guidance for what the doctor should ask and check at TODAY's (${elapsedCtx.todayLabel}) visit — reason explicitly about what should have changed, healed, or progressed over that ${elapsedCtx.elapsed} interval.` : '';
   const sysPrompt = `You are assisting a Malaysian outpatient clinic doctor preparing for a patient's follow-up visit. Given the patient's previous visit note, produce a structured follow-up prep guide with exactly these three sections:
 1. INTERVAL HISTORY — specific questions to ask about symptom progression, treatment response, medication compliance, side effects, and any new symptoms since the last visit.
 2. PHYSICAL EXAMINATION — which systems and specific signs to check, given the condition described.
 3. EXPECTED FINDINGS — what would be a normal/expected result at this stage (e.g. expected range of motion, healing progress, typical trajectory for this condition), and what findings would be concerning and need escalation.
-Be specific to the condition in the previous note, not generic. Do not invent details about the previous visit beyond what's given.` + _caCustomInstr();
-  const userPrompt = `PREVIOUS VISIT NOTE:\n${previous}\n\n${patCtx ? `TODAY'S PATIENT DATA (if already entered):\n${patCtx}\n\n` : ''}Prepare the follow-up guide.`;
+Be specific to the condition in the previous note, not generic. Do not invent details about the previous visit beyond what's given.${elapsedInstr}` + _caCustomInstr();
+  const userPrompt = `PREVIOUS VISIT NOTE${elapsedCtx ? ` (written ${elapsedCtx.lastSeenLabel}, ${elapsedCtx.elapsed})` : ''}:\n${previous}\n\n${patCtx ? `TODAY'S PATIENT DATA (if already entered):\n${patCtx}\n\n` : ''}Prepare the follow-up guide for today${elapsedCtx ? ` (${elapsedCtx.todayLabel})` : ''}.`;
 
   try {
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -24376,13 +24412,14 @@ function caNewPatient() {
 }
 function caResetTools() {
   const prepIn = document.getElementById('caPrepPrevious'); if (prepIn) prepIn.value = '';
+  const prepDate = document.getElementById('caPrepLastSeenDate'); if (prepDate) prepDate.value = '';
+  const prepAgo = document.getElementById('caPrepAgoValue'); if (prepAgo) prepAgo.value = '';
   const sumCase = document.getElementById('caSummaryCase'); if (sumCase) sumCase.value = '';
   const sumQ = document.getElementById('caSummaryQuestion'); if (sumQ) sumQ.value = '';
   const prepOut = document.getElementById('caPrepOutput'); if (prepOut) prepOut.innerHTML = '<div class="ca-output-empty">Load or paste the previous note, then click <strong>Prepare Follow-Up</strong>.</div>';
   const sumOut = document.getElementById('caSummaryOutput'); if (sumOut) sumOut.innerHTML = '<div class="ca-output-empty">Add case details and your question, then click <strong>Generate Summary</strong>.</div>';
   ['caPrepCopyBtn','caSummaryCopyBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   _caPrepRawText = ''; _caSummaryRawText = '';
-  caPopulateSessionPicker();
 }
 
 </script>
