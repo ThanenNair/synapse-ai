@@ -24701,13 +24701,16 @@ function _lpItemHtml(tp) {
 // All entries currently in storage, tagged with _srcType/_srcId (for delete)
 // — session-based entries are always 'clinic' origin; manual entries carry
 // their own `source` field ('clinic' from Add a Note, 'notepad' from the
-// Learning Notepad — older entries predating this field default to 'clinic').
+// Learning Notepad). Entries created before `source` existed have neither
+// field — fall back on the id prefix (Learning Notepad ids always start
+// 'notepad_', Add-a-Note ids start 'manual_') so those older entries still
+// land in the right list instead of defaulting to 'clinic'.
 function _lpAllItems() {
   const fromSessions = getSessions()
     .filter(s => s.teachingPoints && s.teachingPoints.text)
     .map(s => Object.assign({}, s.teachingPoints, { _srcType: 'session', _srcId: s.id, source: 'clinic' }));
   const manual = _caGetManualTeaching()
-    .map(m => Object.assign({}, m, { _srcType: 'manual', _srcId: String(m.id || m.generatedAt), source: m.source || 'clinic' }));
+    .map(m => Object.assign({}, m, { _srcType: 'manual', _srcId: String(m.id || m.generatedAt), source: m.source || (String(m.id || '').startsWith('notepad_') ? 'notepad' : 'clinic') }));
   return fromSessions.concat(manual).sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0));
 }
 function caRenderTeachingPointsList() {
