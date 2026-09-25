@@ -2123,7 +2123,7 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 .dr-paeds-note{font-size:.7rem;color:var(--text);background:var(--bg2);border-radius:5px;padding:.3rem .5rem;margin-top:.4rem;line-height:1.5;}
 
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
-#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,#memoGeneratorOverlay,#teachingPointsOverlay,
+#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,#memoGeneratorOverlay,#teachingPointsOverlay,#learningNotepadOverlay,
 #nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .ca-hdr-btn{display:flex;align-items:center;gap:.35rem;padding:.4rem .7rem;border-radius:8px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;font-size:.72rem;font-weight:600;font-family:'Roboto',sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s;flex-shrink:0;}
 .ca-hdr-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.55);}
@@ -4839,6 +4839,33 @@ body.dark #app::before{
     </div>
   </div>
 
+  <!-- ══════════ LEARNING NOTEPAD ══════════ -->
+  <div id="learningNotepadOverlay">
+    <div class="tool-ovl-hdr">
+      <span class="tool-ovl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+      <div class="tool-ovl-titles">
+        <div class="tool-ovl-title">Learning Notepad</div>
+        <div class="tool-ovl-sub">Jot pearls from teaching or reading — each point becomes a full Teaching Point</div>
+      </div>
+      <button class="ca-hdr-btn" onclick="openTeachingPoints()" title="View generated Teaching Points">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        Teaching Points
+      </button>
+      <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
+    </div>
+    <div class="tool-ovl-body">
+      <div style="max-width:820px;margin:0 auto;">
+        <div class="ca-card-label">Your Notes</div>
+        <textarea class="ca-textarea" id="lnpInput" style="min-height:220px;" placeholder="Write down whatever you picked up — from a specialist's teaching, a ward round, a journal you read, anything. One topic or several at once, in your own shorthand — no need to write in full sentences.&#10;&#10;e.g. &quot;Prof mentioned Wells score for PE — low risk + neg d-dimer rules out. Also DOAC preferred over warfarin now unless mechanical valve or antiphospholipid syndrome.&quot;" oninput="lnpSaveDraft()"></textarea>
+        <button class="ca-gen-btn" id="lnpSendBtn" onclick="generateLearningNotepad()">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send
+        </button>
+        <div id="lnpOutput" style="margin-top:1.2rem;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════ IV INFUSION CALCULATOR ══════════ -->
   <div id="ivInfusionOverlay">
     <div class="tool-ovl-hdr">
@@ -5601,6 +5628,7 @@ const SB_TOOLS = [
   { id:'patcomms',        label:'Patient Comms',        cat:'documentation',  icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10z"/>',                                                                                                                                                                                                                              fn:"openPatComms()" },
   { id:'memogen',         label:'MEMO Generator',       cat:'documentation',  icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',                                                                                                                                                                                                                                                                             fn:"openMemoGenerator()" },
   { id:'teachpoints',     label:'Teaching Points',      cat:'documentation',  icon:'<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>',                                                                                                                                                                                                                                                                                   fn:"openTeachingPoints()" },
+  { id:'learnnotepad',    label:'Learning Notepad',     cat:'documentation',  icon:'<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>',                                                                                                                                                                                                                                                   fn:"openLearningNotepad()" },
   { id:'acls',            label:'ACLS Navigator',       cat:'protocols',      icon:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',                                                                                                                                                                                                                                                                                                                               fn:"openAcls()" },
   { id:'dengue',          label:'Dengue Protocol',      cat:'protocols',      icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',                                                                                                                                                                                                                                                                                                                           fn:"openDengue()" },
   { id:'iocalc',          label:'I/O Calculator',       cat:'procedures',     icon:'<path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>',                                                                                                                                                                                                                                                                                                                                                                                                            fn:"openIoCalc()" },
@@ -23448,7 +23476,7 @@ function ivCompatRender(id) {
 /* ══════════ CLOSE ALL OVERLAYS (instant, no animation) ══════════ */
 const _OVERLAY_IDS = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
   'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
+  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','learningNotepadOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
   'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
 function _anyOverlayOpen(exceptId) {
   return _OVERLAY_IDS.some(id => {
@@ -23481,7 +23509,7 @@ function goHome() {
   if (typeof nnjClosePLTable === 'function') nnjClosePLTable(true); // Home must always close the threshold table too, never leave it stuck open
   const ids = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
     'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
+    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','learningNotepadOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
     'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -24568,6 +24596,102 @@ function caRenderTeachingPointsList() {
         <div class="fsec-body col1 hidden">${itemsHtml}</div>
       </div>`;
   }).join('');
+}
+
+// ─── Learning Notepad — free-form notes → one Teaching Point per topic ──
+// Unlike Teaching Points' own "Add a Note" field (which assumes a single
+// case/topic), a teaching session or reading list often covers several
+// distinct pearls at once — the model is asked to split the note into as
+// many topics as it actually contains, each delimited by ===POINT===, and
+// each is saved as its own entry in the same manual-teaching-points store
+// Teaching Points already renders (grouped by date, deletable) so nothing
+// new needs to be built there.
+function openLearningNotepad() {
+  document.getElementById('learningNotepadOverlay').style.display = 'flex';
+  _closeAllOverlays('learningNotepadOverlay');
+  const input = document.getElementById('lnpInput');
+  if (input) input.value = S.currentUser ? (localStorage.getItem(ukey('learning_notepad_draft')) || '') : '';
+}
+function lnpSaveDraft() {
+  if (!S.currentUser) return;
+  localStorage.setItem(ukey('learning_notepad_draft'), document.getElementById('lnpInput').value);
+}
+function _lnpSysPrompt() {
+  return `You are a medical education assistant helping a Malaysian doctor turn raw notes — from a specialist's teaching, a ward round, or their own reading — into polished, comprehensive teaching points for their own learning.
+
+The notes may cover ONE topic or SEVERAL distinct topics/pearls at once. Identify each distinct topic mentioned, and for EACH one, write a full teaching point — even if the note only touched on one aspect of it (e.g. just a scoring system or one management pearl), expand it into the full structure below rather than just restating what was written.
+
+Before EVERY teaching point, including the first, output a line containing exactly ===POINT=== and nothing else. Then start that point with exactly one line "TITLE: <condition/topic name>" and nothing else on that line, then the full write-up using these headings in this order:
+
+## Definition
+## Presentation
+## Aetiology / Causes
+## Investigations
+## Examination & Imaging Findings
+## Classification
+## Management
+Both conservative and surgical approaches, and the methods used for each.
+## Complications
+## Red Flags / What to Watch Out For
+
+Base each point on what was actually mentioned in the notes — do not invent unrelated topics. Be thorough and clinically accurate; this is for the doctor's own continuing education, so completeness matters more than brevity.`;
+}
+function _lnpParseMultiple(raw) {
+  return raw.split(/={3}POINT={3}/).map(c => c.trim()).filter(Boolean).map(_caParseTeachingResponse);
+}
+async function generateLearningNotepad() {
+  if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
+  const notes = document.getElementById('lnpInput').value.trim();
+  if (!notes) { alert('Please jot down some notes first.'); return; }
+
+  const btn = document.getElementById('lnpSendBtn');
+  const output = document.getElementById('lnpOutput');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-ring"></div> Expanding…';
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Expanding your notes into teaching points…</div>`;
+
+  try {
+    const userPrompt = `RAW NOTES (may cover one or several distinct topics):\n${notes}\n\nGenerate the teaching point(s).`;
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'HTTP-Referer': location.href },
+      body: JSON.stringify({ model: S.model, messages: [{ role:'system', content: _lnpSysPrompt() }, { role:'user', content: userPrompt }], temperature: 0.35 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const raw = data.choices?.[0]?.message?.content || '';
+    const points = _lnpParseMultiple(raw);
+    if (!points.length) throw new Error('No teaching points were returned — try rephrasing your notes.');
+
+    const manual = _caGetManualTeaching();
+    const now = Date.now();
+    const newEntries = points.map((p, i) => ({
+      id: 'notepad_' + now + '_' + i + '_' + Math.random().toString(36).slice(2, 6),
+      title: p.title, text: p.text, patientName: '',
+      date: _caFormatDateLong(new Date()), generatedAt: now - i,
+      manual: true
+    }));
+    newEntries.forEach(e => manual.unshift(e));
+    _caSaveManualTeaching(manual);
+
+    output.innerHTML = newEntries.map(e => `
+      <div class="fsec" style="margin-bottom:.5rem;">
+        <div class="fsec-hdr" onclick="toggleSec(this)">
+          <div class="fsec-title">🩺 ${escHtml(e.title)}</div>
+          <span class="chev">▾</span>
+        </div>
+        <div class="fsec-body col1 hidden">${renderMarkdown(e.text)}</div>
+      </div>`).join('') + `<div style="text-align:center;margin-top:.8rem;"><span style="color:var(--accent);font-weight:600;font-size:.8rem;cursor:pointer;" onclick="openTeachingPoints()">View in Teaching Points →</span></div>`;
+
+    document.getElementById('lnpInput').value = '';
+    if (S.currentUser) localStorage.removeItem(ukey('learning_notepad_draft'));
+    caShowToast(newEntries.length > 1 ? `${newEntries.length} teaching points generated` : `Teaching point ready: ${newEntries[0].title}`);
+  } catch(e) {
+    output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+  }
 }
 
 // ─── Clinic Assistant: New Patient button ───────────
