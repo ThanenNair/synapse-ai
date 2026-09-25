@@ -670,6 +670,13 @@ body.dark .ctx-banner-row{border-bottom-color:var(--border);}
   transition:border-color .15s,color .15s,background .15s;
 }
 .ca-tp-del-btn:hover{border-color:var(--danger);color:var(--danger);background:rgba(220,38,38,.08);}
+.ca-tp-edit-btn{
+  width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border);
+  background:#fff;color:var(--text-muted);cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.ca-tp-edit-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.08);}
 .ca-tp-count{
   font-size:.68rem;font-weight:700;color:var(--text-muted);
   background:var(--bg2);border-radius:99px;padding:.1rem .55rem;
@@ -24574,6 +24581,75 @@ function caDeleteTeachingPoint(srcType, srcId) {
   }
   _refreshAllLearningLists();
 }
+// Renames one learning point's title in place (looks the current title up
+// itself rather than taking it as a param, so the onclick attribute only
+// ever needs the safe srcType/srcId pair — no risk of quotes in a title
+// breaking the inline handler).
+function caRenameTeachingPoint(srcType, srcId) {
+  let current = '';
+  if (srcType === 'session') {
+    current = getSessions().find(s => s.id === srcId)?.teachingPoints?.title || '';
+  } else {
+    current = _caGetManualTeaching().find(m => String(m.id || m.generatedAt) === srcId)?.title || '';
+  }
+  const next = prompt('Rename this learning point:', current);
+  if (next === null) return;
+  const trimmed = next.trim();
+  if (!trimmed) return;
+  if (srcType === 'session') {
+    const sessions = getSessions();
+    const idx = sessions.findIndex(s => s.id === srcId);
+    if (idx >= 0 && sessions[idx].teachingPoints) { sessions[idx].teachingPoints.title = trimmed; saveSessions(sessions); }
+  } else {
+    const manual = _caGetManualTeaching();
+    const idx = manual.findIndex(m => String(m.id || m.generatedAt) === srcId);
+    if (idx >= 0) { manual[idx].title = trimmed; _caSaveManualTeaching(manual); }
+  }
+  _refreshAllLearningLists();
+}
+
+// ─── Date-group labels — a rendered date group (e.g. "25 September 2026")
+//     has no stored entity of its own (it's just a bucket derived from each
+//     item's generatedAt), so a custom label is kept in a small per-user
+//     dayKey → label map, shared across Clinic Learning Points, the
+//     Learning Notepad and Learning Log since they group the same calendar
+//     days, just filtered to different items.
+function _lpGetDayLabels() {
+  if (!S.currentUser) return {};
+  try { return JSON.parse(localStorage.getItem(ukey('learning_daygroup_labels')) || '{}'); } catch(e) { return {}; }
+}
+function _lpSaveDayLabels(obj) {
+  if (!S.currentUser) return;
+  localStorage.setItem(ukey('learning_daygroup_labels'), JSON.stringify(obj));
+}
+function _lpDefaultDayLabel(dayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return _caFormatDateLong(new Date(y, m - 1, d));
+}
+function _lpRenameDayGroup(dayKey) {
+  const labels = _lpGetDayLabels();
+  const current = labels[dayKey] || _lpDefaultDayLabel(dayKey);
+  const next = prompt('Rename this date group:', current);
+  if (next === null) return;
+  const trimmed = next.trim();
+  if (!trimmed || trimmed === _lpDefaultDayLabel(dayKey)) delete labels[dayKey];
+  else labels[dayKey] = trimmed;
+  _lpSaveDayLabels(labels);
+  _refreshAllLearningLists();
+}
+function _lpDayGroupHdrHtml(dayKey, count) {
+  const label = _lpGetDayLabels()[dayKey] || _lpDefaultDayLabel(dayKey);
+  return `
+    <div class="fsec-hdr" onclick="toggleSec(this)">
+      <div class="fsec-title">📅 ${escHtml(label)} <span class="ca-tp-count">${count}</span></div>
+      <div style="display:flex;align-items:center;gap:.55rem;">
+        <button class="ca-tp-edit-btn" onclick="event.stopPropagation();_lpRenameDayGroup('${dayKey}')" title="Rename this date group">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <span class="chev">▾</span>
+      </div>
+    </div>`;
+}
 
 // Shared 2-level (date → item) renderer used by both Clinic Learning
 // Points' own list and the Learning Notepad's own list — each passes in
@@ -24589,20 +24665,17 @@ function _lpRenderGrouped(containerId, items, emptyMsg) {
   items.forEach(tp => {
     const d = tp.generatedAt ? new Date(tp.generatedAt) : new Date();
     const dayKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    if (!groups.has(dayKey)) groups.set(dayKey, { label: _caFormatDateLong(d), items: [] });
-    groups.get(dayKey).items.push(tp);
+    if (!groups.has(dayKey)) groups.set(dayKey, []);
+    groups.get(dayKey).push(tp);
   });
   const dayKeys = Array.from(groups.keys()).sort().reverse();
 
   wrap.innerHTML = dayKeys.map(dayKey => {
-    const g = groups.get(dayKey);
+    const dayItems = groups.get(dayKey);
     return `
       <div class="fsec ca-tp-daygroup" style="margin-bottom:.6rem;">
-        <div class="fsec-hdr" onclick="toggleSec(this)">
-          <div class="fsec-title">📅 ${escHtml(g.label)} <span class="ca-tp-count">${g.items.length}</span></div>
-          <span class="chev">▾</span>
-        </div>
-        <div class="fsec-body col1 hidden">${g.items.map(_lpItemHtml).join('')}</div>
+        ${_lpDayGroupHdrHtml(dayKey, dayItems.length)}
+        <div class="fsec-body col1 hidden">${dayItems.map(_lpItemHtml).join('')}</div>
       </div>`;
   }).join('');
 }
@@ -24613,6 +24686,9 @@ function _lpItemHtml(tp) {
       <div class="fsec-hdr" onclick="toggleSec(this)">
         <div class="fsec-title">🩺 ${label}</div>
         <div style="display:flex;align-items:center;gap:.55rem;">
+          <button class="ca-tp-edit-btn" onclick="event.stopPropagation();caRenameTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Rename this learning point">
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
           <button class="ca-tp-del-btn" onclick="event.stopPropagation();caDeleteTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Delete this learning point">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
@@ -24680,7 +24756,7 @@ function _lpaRenderList() {
   all.forEach(tp => {
     const d = tp.generatedAt ? new Date(tp.generatedAt) : new Date();
     const dayKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    if (!groups.has(dayKey)) groups.set(dayKey, { label: _caFormatDateLong(d), clinic: [], notepad: [] });
+    if (!groups.has(dayKey)) groups.set(dayKey, { clinic: [], notepad: [] });
     groups.get(dayKey)[tp.source === 'notepad' ? 'notepad' : 'clinic'].push(tp);
   });
   const dayKeys = Array.from(groups.keys()).sort().reverse();
@@ -24692,10 +24768,7 @@ function _lpaRenderList() {
     const notepadHtml = g.notepad.length ? `<div class="ca-tp-subgroup-label">Notepad (${g.notepad.length})</div>${g.notepad.map(_lpItemHtml).join('')}` : '';
     return `
       <div class="fsec ca-tp-daygroup" style="margin-bottom:.6rem;">
-        <div class="fsec-hdr" onclick="toggleSec(this)">
-          <div class="fsec-title">📅 ${escHtml(g.label)} <span class="ca-tp-count">${total}</span></div>
-          <span class="chev">▾</span>
-        </div>
+        ${_lpDayGroupHdrHtml(dayKey, total)}
         <div class="fsec-body col1 hidden">${clinicHtml}${notepadHtml}</div>
       </div>`;
   }).join('');
