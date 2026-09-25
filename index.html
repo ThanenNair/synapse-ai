@@ -24607,6 +24607,22 @@ function caRenameTeachingPoint(srcType, srcId) {
   }
   _refreshAllLearningLists();
 }
+// Manually reassign a manually-added entry between Clinic / Notepad — for
+// the rare case a doctor spots one classified wrong (e.g. an entry from
+// before the `source` field existed that the id-prefix fallback guessed
+// incorrectly). Session-based entries are always Clinic by construction
+// and can't be moved.
+function caMoveTeachingPointSource(srcId) {
+  const manual = _caGetManualTeaching();
+  const idx = manual.findIndex(m => String(m.id || m.generatedAt) === srcId);
+  if (idx < 0) return;
+  const current = manual[idx].source === 'notepad' ? 'notepad' : 'clinic';
+  const next = current === 'notepad' ? 'clinic' : 'notepad';
+  if (!confirm(`Move "${manual[idx].title}" to ${next === 'notepad' ? 'the Learning Notepad' : 'Clinic Learning Points'}?`)) return;
+  manual[idx].source = next;
+  _caSaveManualTeaching(manual);
+  _refreshAllLearningLists();
+}
 
 // ─── Date-group labels — a rendered date group (e.g. "25 September 2026")
 //     has no stored entity of its own (it's just a bucket derived from each
@@ -24681,6 +24697,12 @@ function _lpRenderGrouped(containerId, items, emptyMsg) {
 }
 function _lpItemHtml(tp) {
   const label = `${escHtml(tp.title)}${tp.patientName ? ' — ' + escHtml(tp.patientName) : ''}${tp.manual && tp.source !== 'notepad' ? ' · manual note' : ''}`;
+  // Only manually-added entries can be moved between Clinic/Notepad —
+  // session-based ones are always Clinic by construction.
+  const moveBtn = tp._srcType === 'manual' ? `
+          <button class="ca-tp-edit-btn" onclick="event.stopPropagation();caMoveTeachingPointSource('${tp._srcId}')" title="Move to ${tp.source === 'notepad' ? 'Clinic Learning Points' : 'the Learning Notepad'}">
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+          </button>` : '';
   return `
     <div class="fsec" style="margin-bottom:.5rem;">
       <div class="fsec-hdr" onclick="toggleSec(this)">
@@ -24688,7 +24710,7 @@ function _lpItemHtml(tp) {
         <div style="display:flex;align-items:center;gap:.55rem;">
           <button class="ca-tp-edit-btn" onclick="event.stopPropagation();caRenameTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Rename this learning point">
             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
+          </button>${moveBtn}
           <button class="ca-tp-del-btn" onclick="event.stopPropagation();caDeleteTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Delete this learning point">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
