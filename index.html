@@ -24429,21 +24429,27 @@ function _caParseTeachingResponse(raw) {
 // generation isn't completely silent (the doctor can tell it ran, was
 // skipped, or failed) without ever interrupting their workflow the way
 // alert() would.
+function _caHideToast(t) {
+  clearTimeout(t._hideTimer);
+  t.style.opacity = '0';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+}
 function caShowToast(msg, isError) {
   let t = document.getElementById('caToast');
   if (!t) {
     t = document.createElement('div');
     t.id = 'caToast';
-    t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(0);z-index:99999;padding:.6rem 1.1rem;border-radius:99px;font-size:.8rem;font-weight:600;font-family:Roboto,sans-serif;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;max-width:80vw;text-align:center;';
+    t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(0);z-index:99999;padding:.6rem .6rem .6rem 1.1rem;border-radius:16px;font-size:.8rem;font-weight:600;font-family:Roboto,sans-serif;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:opacity .25s ease,transform .25s ease;max-width:min(80vw,480px);display:flex;align-items:flex-start;gap:.6rem;';
+    t.innerHTML = `<span id="caToastMsg" style="flex:1;text-align:left;"></span><button id="caToastClose" title="Dismiss" style="flex-shrink:0;width:20px;height:20px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;line-height:1;padding:0;margin-top:.05rem;">✕</button>`;
     document.body.appendChild(t);
+    document.getElementById('caToastClose').onclick = () => _caHideToast(t);
   }
   t.style.background = isError ? '#dc2626' : 'var(--grad-accent)';
-  t.textContent = msg;
+  t.style.pointerEvents = 'auto';
+  document.getElementById('caToastMsg').textContent = msg;
   requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(-6px)'; });
   clearTimeout(t._hideTimer);
-  t._hideTimer = setTimeout(() => {
-    t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(0)';
-  }, 3200);
+  t._hideTimer = setTimeout(() => _caHideToast(t), 3200);
 }
 
 async function caGenerateTeachingPoints(sessionId) {
@@ -24623,6 +24629,28 @@ function caMoveTeachingPointSource(srcId) {
   _caSaveManualTeaching(manual);
   _refreshAllLearningLists();
 }
+// Hides an entry from its own home list (Clinic Learning Points or the
+// Learning Notepad) while keeping it visible in Learning Log, which always
+// shows everything regardless of this flag — e.g. a topic that's no longer
+// relevant to browse day-to-day but still worth keeping in the full record.
+function caToggleArchiveTeachingPoint(srcType, srcId) {
+  if (srcType === 'session') {
+    const sessions = getSessions();
+    const idx = sessions.findIndex(s => s.id === srcId);
+    if (idx >= 0 && sessions[idx].teachingPoints) {
+      sessions[idx].teachingPoints.archived = !sessions[idx].teachingPoints.archived;
+      saveSessions(sessions);
+    }
+  } else {
+    const manual = _caGetManualTeaching();
+    const idx = manual.findIndex(m => String(m.id || m.generatedAt) === srcId);
+    if (idx >= 0) {
+      manual[idx].archived = !manual[idx].archived;
+      _caSaveManualTeaching(manual);
+    }
+  }
+  _refreshAllLearningLists();
+}
 
 // ─── Date-group labels — a rendered date group (e.g. "25 September 2026")
 //     has no stored entity of its own (it's just a bucket derived from each
@@ -24696,13 +24724,24 @@ function _lpRenderGrouped(containerId, items, emptyMsg) {
   }).join('');
 }
 function _lpItemHtml(tp) {
-  const label = `${escHtml(tp.title)}${tp.patientName ? ' — ' + escHtml(tp.patientName) : ''}${tp.manual && tp.source !== 'notepad' ? ' · manual note' : ''}`;
+  const homeList = tp.source === 'notepad' ? 'the Learning Notepad' : 'Clinic Learning Points';
+  const label = `${escHtml(tp.title)}${tp.patientName ? ' — ' + escHtml(tp.patientName) : ''}${tp.manual && tp.source !== 'notepad' ? ' · manual note' : ''}${tp.archived ? ' · hidden from list' : ''}`;
   // Only manually-added entries can be moved between Clinic/Notepad —
   // session-based ones are always Clinic by construction.
   const moveBtn = tp._srcType === 'manual' ? `
           <button class="ca-tp-edit-btn" onclick="event.stopPropagation();caMoveTeachingPointSource('${tp._srcId}')" title="Move to ${tp.source === 'notepad' ? 'Clinic Learning Points' : 'the Learning Notepad'}">
             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
           </button>` : '';
+  // Removes this entry from its own home list (Clinic Learning Points or
+  // the Learning Notepad) while keeping it in Learning Log, which ignores
+  // this flag and always shows everything.
+  const archiveBtn = tp.archived
+    ? `<button class="ca-tp-edit-btn" onclick="event.stopPropagation();caToggleArchiveTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Restore to ${homeList}">
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>`
+    : `<button class="ca-tp-edit-btn" onclick="event.stopPropagation();caToggleArchiveTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Remove from ${homeList} (keep in Learning Log)">
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>`;
   return `
     <div class="fsec" style="margin-bottom:.5rem;">
       <div class="fsec-hdr" onclick="toggleSec(this)">
@@ -24710,7 +24749,7 @@ function _lpItemHtml(tp) {
         <div style="display:flex;align-items:center;gap:.55rem;">
           <button class="ca-tp-edit-btn" onclick="event.stopPropagation();caRenameTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Rename this learning point">
             <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>${moveBtn}
+          </button>${moveBtn}${archiveBtn}
           <button class="ca-tp-del-btn" onclick="event.stopPropagation();caDeleteTeachingPoint('${tp._srcType}','${tp._srcId}')" title="Delete this learning point">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
@@ -24736,7 +24775,7 @@ function _lpAllItems() {
   return fromSessions.concat(manual).sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0));
 }
 function caRenderTeachingPointsList() {
-  const items = _lpAllItems().filter(tp => tp.source !== 'notepad');
+  const items = _lpAllItems().filter(tp => tp.source !== 'notepad' && !tp.archived);
   _lpRenderGrouped('caTeachList', items, "No learning points yet — they're generated automatically whenever you start or switch to a new patient, or you can add a note above for a case you didn't personally see.");
 }
 
@@ -24747,7 +24786,7 @@ function caRenderTeachingPointsList() {
 // its own entry (source: 'notepad') in the same store Clinic Learning
 // Points uses, so deletion/grouping infrastructure is shared.
 function lnpRenderList() {
-  const items = _lpAllItems().filter(tp => tp.source === 'notepad');
+  const items = _lpAllItems().filter(tp => tp.source === 'notepad' && !tp.archived);
   _lpRenderGrouped('lnpOutput', items, 'No learning points yet — write some notes above and click Send.');
 }
 function openLearningNotepad() {
