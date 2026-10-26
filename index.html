@@ -3209,14 +3209,14 @@ body.dark #app::before{
   </div>
 
   <div class="login-card" id="loginCard">
-    <!-- TOUCH ID / FACE ID / WINDOWS HELLO -->
+    <!-- BIOMETRIC LOGIN (fingerprint / face / device unlock) -->
     <div id="webauthnLoginWrap" style="display:none">
       <div class="login-title">Welcome back</div>
-      <div class="login-sub">Sign in with Touch ID</div>
+      <div class="login-sub">Login with Biometrics</div>
       <div class="login-err" id="webauthnErr"></div>
       <button class="login-submit" id="webauthnBtn" onclick="doWebauthnLogin()" style="display:flex;align-items:center;justify-content:center;gap:.55rem;">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 0-4 4v2"/><path d="M16 7a4 4 0 0 0-8 0v2"/><path d="M6 9v3a6 6 0 0 0 6 6"/><path d="M18 9v4a8 8 0 0 1-1.5 4.7"/><path d="M9 18a3 3 0 0 0 3 3c3.5 0 6-2.5 6.6-6"/><path d="M12 12v2a3 3 0 0 0 3 3"/></svg>
-        <span id="webauthnBtnLabel">Sign in with Touch ID</span>
+        <span id="webauthnBtnLabel">Login with Biometrics</span>
       </button>
       <div class="login-toggle"><a onclick="_useWebauthnFallback()">Use password instead</a></div>
     </div>
@@ -4040,12 +4040,12 @@ body.dark #app::before{
       <div class="settings-sec" id="stSecuritySec" style="display:none">
         <div class="settings-sec-title">Security</div>
         <div class="settings-row">
-          <span class="settings-row-label">Sign in with Touch ID</span>
+          <span class="settings-row-label">Login with Biometrics</span>
           <button class="dark-toggle" id="stTouchIdToggle" onclick="toggleTouchId()">
             <span class="dark-toggle-knob"></span>
           </button>
         </div>
-        <div style="font-size:.68rem;color:var(--text-muted);line-height:1.5;margin-top:.3rem;">Skip the password on this device using Touch ID, Face ID, or Windows Hello — whatever your browser offers. The check happens on your device; Synapse never sees your biometric data.</div>
+        <div style="font-size:.68rem;color:var(--text-muted);line-height:1.5;margin-top:.3rem;">Skip the password on this device using your fingerprint, face, or screen lock — works on Android, iPhone/iPad, Mac and Windows, whatever biometrics your device offers. The check happens on your device; Synapse never sees your biometric data.</div>
       </div>
     </div>
     <div class="settings-foot">
@@ -4159,7 +4159,7 @@ body.dark #app::before{
                 <option value="">Select</option><option>Male</option><option>Female</option>
               </select>
             </div>
-            <div class="fg"><span class="flabel">IC / MRN</span><input class="finput" id="pt_ic" placeholder="IC No. / MRN" oninput="updateCtx()"/></div>
+            <div class="fg"><span class="flabel">MRN</span><input class="finput" id="pt_ic" placeholder="MRN" oninput="updateCtx()"/></div>
             <div class="fg"><span class="flabel">Date of Presentation</span><input class="finput" id="pt_date" type="date" oninput="updateCtx()"/></div>
             <div class="fg"><span class="flabel">Ward / Clinic</span><input class="finput" id="pt_ward" placeholder="e.g. Medical Ward 3" oninput="updateCtx()"/></div>
           </div>
@@ -4944,7 +4944,7 @@ body.dark #app::before{
           <div class="rr-form-grid">
             <div>
               <div class="rr-inp-label">Patient Name</div>
-              <input class="rr-inp" id="rrPatient" type="text" placeholder="e.g. Baby Aisyah" autocomplete="off"/>
+              <input class="rr-inp" id="rrPatient" type="text" placeholder="Patient name" autocomplete="off"/>
             </div>
             <div>
               <div class="rr-inp-label">Bed Number</div>
@@ -6261,7 +6261,7 @@ function buildPatientContext(d) {
   const add = (label, key, unit='') => { if (d[key]) ctx += `${label}: ${d[key]}${unit}\n`; };
 
   add('Name', 'pt_name'); add('Age', 'pt_age', ' years'); add('Gender', 'pt_gender');
-  add('IC/MRN', 'pt_ic'); add('Date', 'pt_date'); add('Ward/Clinic', 'pt_ward');
+  add('MRN', 'pt_ic'); add('Date', 'pt_date'); add('Ward/Clinic', 'pt_ward');
 
   if (d.pt_cc || d.pt_duration) {
     ctx += '\n--- CHIEF COMPLAINT ---\n';
@@ -6436,7 +6436,7 @@ async function generateEntry() {
   if(d.pt_name)   demog.push(`**${d.pt_name}**`);
   if(d.pt_age)    demog.push(`${d.pt_age}-year-old`);
   if(d.pt_gender) demog.push(d.pt_gender.toLowerCase());
-  if(d.pt_ic)     demog.push(`(IC/MRN: ${d.pt_ic})`);
+  if(d.pt_ic)     demog.push(`(MRN: ${d.pt_ic})`);
   if(demog.length) entry += `**Patient:** ${demog.join(' ')}\n\n`;
 
   // ── Chief Complaint ──
@@ -7819,7 +7819,7 @@ ${notes ? `ADDITIONAL NOTES: ${notes}\n` : ''}
 ${patCtx}
 
 Structure the letter with:
-1. Header block — From (ward/hospital if available), To (${refTo}), Date, Re: (patient name, age, gender, IC/MRN)
+1. Header block — From (ward/hospital if available), To (${refTo}), Date, Re: (patient name, age, gender, MRN)
 2. Opening — brief reason for referral
 3. CLINICAL SUMMARY — presenting complaint and relevant history
 4. RELEVANT INVESTIGATIONS — pertinent findings only (omit if none available)
@@ -16586,8 +16586,8 @@ async function enableTouchId() {
     _saveWebauthnCreds(creds);
     localStorage.setItem('sai_last_user', S.currentUser);
   } catch (e) {
-    console.warn('Touch ID setup failed/cancelled', e);
-    alert('Could not set up Touch ID: ' + (e.message || 'cancelled, or unavailable on this device.'));
+    console.warn('Biometric setup failed/cancelled', e);
+    alert('Could not set up biometric login: ' + (e.message || 'cancelled, or unavailable on this device.'));
   }
   _refreshTouchIdToggle();
 }
@@ -16626,8 +16626,8 @@ async function doWebauthnLogin() {
     sessionStorage.setItem('sai_session', JSON.stringify({ username: user }));
     showApp(true);
   } catch (e) {
-    console.warn('Touch ID sign-in failed', e);
-    err.textContent = 'Touch ID sign-in failed or was cancelled.';
+    console.warn('Biometric sign-in failed', e);
+    err.textContent = 'Biometric login failed or was cancelled.';
     err.classList.add('on');
   }
 }
@@ -17681,7 +17681,7 @@ async function extractAndFillFromImages(images) {
 Return ONLY a valid JSON object with exactly these field names. Merge information from all images. Use empty string "" for any field not found. Return ONLY the JSON — no markdown, no explanation, no code fences.
 
 Fields:
-pt_name, pt_age, pt_gender (Male/Female/Other), pt_ic, pt_date (YYYY-MM-DD if possible), pt_ward,
+pt_name, pt_age, pt_gender (Male/Female/Other), pt_ic (MRN only — leave empty if only an IC / identity card number is shown), pt_date (YYYY-MM-DD if possible), pt_ward,
 pt_cc, pt_duration, pt_hopi,
 pt_pmh, pt_allergy, pt_meds, pt_social,
 pt_bp (e.g. 120/80), pt_hr, pt_spo2, pt_temp, pt_rr, pt_gcs, pt_weight, pt_height,
@@ -23628,7 +23628,7 @@ function stopDictate() {
 // Field IDs here must match the real Tab 2 form inputs (pt_*, fbc_*, rft_*, lft_*, lab_*, img_*).
 const SYNAPSE_FIELD_MAP = {
   pt_name:'Patient full name', pt_age:'Age (number only)', pt_gender:'Gender — exactly "Male" or "Female"',
-  pt_ic:'IC number or MRN', pt_ward:'Ward or clinic', pt_date:'Date of presentation (YYYY-MM-DD, only if explicitly stated)',
+  pt_ic:'MRN (medical record number) only — never an IC / identity card number', pt_ward:'Ward or clinic', pt_date:'Date of presentation (YYYY-MM-DD, only if explicitly stated)',
   pt_cc:'Chief complaint (main symptom)', pt_duration:'Duration of complaint',
   pt_hopi:'History of presenting illness (detailed narrative)',
   pt_pmh:'Past medical history / underlying conditions (comma-separated)',
