@@ -2132,7 +2132,7 @@ body.dark .dr-sal-card{background:rgba(255,255,255,.04);}
 .dr-paeds-note{font-size:.7rem;color:var(--text);background:var(--bg2);border-radius:5px;padding:.3rem .5rem;margin-top:.4rem;line-height:1.5;}
 
 /* ─── NEW TOOL OVERLAYS (shared) ─────────────────── */
-#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,#memoGeneratorOverlay,#teachingPointsOverlay,#learningNotepadOverlay,#learningLogOverlay,
+#ivInfusionOverlay,#paedsToolsOverlay,#dengueOverlay,#procNoteOverlay,#handoverOverlay,#patCommsOverlay,#clinicAssistantOverlay,#memoGeneratorOverlay,#teachingPointsOverlay,#learningNotepadOverlay,#learningLogOverlay,#riskScoreOverlay,
 #nicuRespOverlay,#nicuFluidsOverlay,#nicuSurvivalOverlay,#nicuResusOverlay,#nicuGestationOverlay,#nicuConvertOverlay{position:fixed;top:0;left:var(--rail-w,0px);right:0;bottom:0;background:var(--bg);display:none;flex-direction:column;z-index:150;transition:left .22s var(--ease);}
 .ca-hdr-btn{display:flex;align-items:center;gap:.35rem;padding:.4rem .7rem;border-radius:8px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;font-size:.72rem;font-weight:600;font-family:'Roboto',sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s;flex-shrink:0;}
 .ca-hdr-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.55);}
@@ -4020,6 +4020,17 @@ body.dark #app::before{
       </div>
       <div class="settings-sec">
         <div class="settings-sec-title">Custom Instructions</div>
+        <select class="modal-input modal-select" style="margin-bottom:.45rem;" onchange="applyRolePreset('stCustomPrompt', this)">
+          <option value="">Apply a role preset…</option>
+          <option value="hand">Orthopedic Hand</option>
+          <option value="trauma">Orthopedic Trauma</option>
+          <option value="paeds">Paediatrics</option>
+          <option value="og">Obstetrics &amp; Gynaecology</option>
+          <option value="surgery">Surgery</option>
+          <option value="medical">Medical</option>
+          <option value="ed">ED</option>
+          <option value="__clear">✕ Clear instructions</option>
+        </select>
         <textarea class="modal-input" id="stCustomPrompt" rows="3"
           placeholder="e.g. I am an O&amp;G MO. Always consider obstetric causes first. Prefer Malaysian drug brand names."
           style="resize:vertical;min-height:72px;line-height:1.55;font-size:.82rem;margin-bottom:0;"></textarea>
@@ -4693,6 +4704,17 @@ body.dark #app::before{
     </div>
     <div class="ca-instr-bar" id="caInstrBar" style="display:none">
       <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ca-instr-icon" style="flex-shrink:0;"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      <select class="ca-instr-input" style="flex:0 0 auto;width:auto;max-width:11rem;" onchange="applyRolePreset('caCustomPrompt', this)">
+        <option value="">Apply a role preset…</option>
+          <option value="hand">Orthopedic Hand</option>
+          <option value="trauma">Orthopedic Trauma</option>
+          <option value="paeds">Paediatrics</option>
+          <option value="og">Obstetrics &amp; Gynaecology</option>
+          <option value="surgery">Surgery</option>
+          <option value="medical">Medical</option>
+          <option value="ed">ED</option>
+          <option value="__clear">✕ Clear instructions</option>
+      </select>
       <input class="ca-instr-input" id="caCustomPrompt" placeholder="Custom instructions — e.g. &quot;I am an Orthopedic Hand Team MO. Focus on hand/wrist exams, range of motion, grip strength, nerve and tendon assessment.&quot;" oninput="caSaveCustomPrompt()">
     </div>
     <div class="tabs">
@@ -4884,6 +4906,41 @@ body.dark #app::before{
     <div class="tool-ovl-body">
       <div style="max-width:820px;margin:0 auto;">
         <div id="lpaList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ RISK SCORE FINDER ══════════ -->
+  <div id="riskScoreOverlay">
+    <div class="tool-ovl-hdr">
+      <span class="tool-ovl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15a9 9 0 0118 0"/><path d="M12 15l4-6"/><circle cx="12" cy="15" r="1.2"/><line x1="3" y1="19" x2="21" y2="19"/></svg></span>
+      <div class="tool-ovl-titles">
+        <div class="tool-ovl-title">Risk Score Finder</div>
+        <div class="tool-ovl-sub">Describe the patient — AI picks the relevant scores and calculates them, showing the working</div>
+      </div>
+      <button class="tool-ovl-close" onclick="goHome()" title="Back to main app"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></button>
+    </div>
+    <div class="tool-ovl-body">
+      <div style="max-width:820px;margin:0 auto;">
+        <div class="ca-card-label">Clinical Details</div>
+        <textarea class="ca-textarea" id="rsInput" style="min-height:150px;" placeholder="Free text is fine — e.g. &quot;68M, chest pain 2h, HTN + T2DM + smoker, ECG ST depression V4–V6, HR 96, BP 150/90, troponin pending&quot;  or  &quot;28F 34/40, headache, BP 160/110, 2+ proteinuria&quot;"></textarea>
+        <label class="ca-checkbox-row">
+          <input type="checkbox" id="rsUsePatient" checked>
+          Also use the current Patient Information (Tab 2), if filled in
+        </label>
+        <button class="ca-gen-btn" id="rsGenBtn" onclick="generateRiskScores()">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15a9 9 0 0118 0"/><path d="M12 15l4-6"/><circle cx="12" cy="15" r="1.2"/></svg>
+          Find Risk Scores
+        </button>
+        <div class="ca-panel-output">
+          <div class="ca-output-hdr">
+            <span class="ca-output-title">Risk Scores</span>
+            <button class="pcom-copy-btn" id="rsCopyBtn" onclick="riskScoresCopy()" style="display:none;">Copy</button>
+          </div>
+          <div id="rsOutput" class="ca-output-body">
+            <div class="ca-output-empty">Enter the clinical details, then click <strong>Find Risk Scores</strong>.</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -5640,6 +5697,7 @@ const SB_TOOLS = [
   { id:'paeds-ppum',      label:'PPUM Phonebook',      cat:'quick',          icon:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',                                                                                                                                                                                                                                                                                    fn:"openPaedsTool('ppum')" },
   { id:'cpg',             label:'CPG Library',        cat:'reference',      icon:'<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',                                                                                                                                                                                                                                                                      fn:"openCpgLibrary()" },
   { id:'mdcalc',          label:'Calculators',         cat:'reference',      icon:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>',                                                                                                                                                                                                               fn:"openMdCalc()" },
+  { id:'riskscores',      label:'Risk Score Finder',    cat:'reference',      icon:'<path d="M3 15a9 9 0 0118 0"/><path d="M12 15l4-6"/><circle cx="12" cy="15" r="1.2"/><line x1="3" y1="19" x2="21" y2="19"/>', fn:"openRiskScores()" },
   { id:'drug',            label:'Drug Reference',      cat:'reference',      icon:'<path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6z"/><path d="M9 3v6h6"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/>',                                                                                                                                                                                                        fn:"openDrugRef()" },
   { id:'abg',             label:'ABG Interpreter',     cat:'reference',      icon:'<polyline points="1,12 5,12 7,6 9,18 11,4 13,16 15,10 17,12 23,12"/>',                                                                                                                                                                                                                                                                                                               fn:"openAbg()" },
   { id:'iv',              label:'IV Infusion',          cat:'procedures',     icon:'<path d="M18 2l4 4-12 12H6v-4L18 2z"/><path d="M2 22h20"/>',                                                                                                                                                                                                                                                                                                                        fn:"openIvInfusion()" },
@@ -23500,7 +23558,7 @@ function ivCompatRender(id) {
 /* ══════════ CLOSE ALL OVERLAYS (instant, no animation) ══════════ */
 const _OVERLAY_IDS = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
   'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','learningNotepadOverlay','learningLogOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
+  'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','learningNotepadOverlay','learningLogOverlay','riskScoreOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay','abxOverlay','ioCalcOverlay',
   'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
 function _anyOverlayOpen(exceptId) {
   return _OVERLAY_IDS.some(id => {
@@ -23533,7 +23591,7 @@ function goHome() {
   if (typeof nnjClosePLTable === 'function') nnjClosePLTable(true); // Home must always close the threshold table too, never leave it stuck open
   const ids = ['cpgLibrary','refLetterOverlay','mdCalcOverlay','drugRefOverlay','abgOverlay',
     'ivInfusionOverlay','paedsToolsOverlay','dengueOverlay','procNoteOverlay',
-    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','learningNotepadOverlay','learningLogOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
+    'handoverOverlay','patCommsOverlay','clinicAssistantOverlay','memoGeneratorOverlay','teachingPointsOverlay','learningNotepadOverlay','learningLogOverlay','riskScoreOverlay','procTutorialOverlay','aclsOverlay','ivCompatOverlay',
     'nicuRespOverlay','nicuFluidsOverlay','nicuSurvivalOverlay','nicuResusOverlay','nicuGestationOverlay','nicuConvertOverlay'];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -24906,6 +24964,109 @@ async function generateLearningNotepad() {
     btn.disabled = false;
     btn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
   }
+}
+
+
+// ─── Role presets for custom instructions ──────────
+// One-tap starting points for the custom-instruction fields (Settings and
+// Clinic Assistant). Selecting one fills the field; the select resets so it
+// acts as an "apply" menu rather than a stale indicator after you edit.
+const ROLE_PRESETS = [
+  { key:'hand',    label:'Orthopedic Hand',
+    text:"I am an Orthopaedic Hand Team MO. Focus on hand and wrist anatomy and examination (ROM, grip and pinch strength, sensory and motor nerve testing, tendon integrity, perfusion), hand trauma and infections, tendon and nerve injuries, compressive neuropathies, and post-operative splinting and hand therapy. Prefer Malaysian drug brand names." },
+  { key:'trauma',  label:'Orthopedic Trauma',
+    text:"I am an Orthopaedic Trauma MO. Think ATLS-style: life threats first, then limb threats. Always address neurovascular status, compartment syndrome risk, open fracture management (Gustilo-Anderson, antibiotics, tetanus, timing of debridement), fracture classification (AO/OTA and region-specific systems), fixation options, DVT prophylaxis, and weight-bearing and rehabilitation plans. Prefer Malaysian drug brand names." },
+  { key:'paeds',   label:'Paediatrics',
+    text:"I am a Paediatric MO. Use weight-based dosing with explicit mg/kg and maximum doses, age-appropriate normal ranges for vital signs and labs, and the Malaysian NIP immunisation schedule. Consider developmental stage, congenital and infectious causes first, safeguarding concerns where relevant, and parental counselling. Prefer Malaysian paediatric CPGs and brand names." },
+  { key:'og',      label:'Obstetrics & Gynaecology',
+    text:"I am an O&G MO. Always consider pregnancy and obstetric causes first in women of reproductive age, state gestational age-appropriate reasoning, and flag fetal wellbeing alongside maternal assessment. Cover antenatal, intrapartum, postpartum and gynaecological presentations, medication safety in pregnancy and breastfeeding, and MOH Malaysia O&G CPGs. Prefer Malaysian drug brand names." },
+  { key:'surgery', label:'Surgery',
+    text:"I am a General Surgery MO. Focus on surgical diagnosis (acute abdomen, hernias, hepatobiliary, colorectal, breast, thyroid, vascular, wounds), operative vs conservative decision-making, pre-operative optimisation and peri-operative medication management, post-operative complications, and clear escalation criteria. Prefer Malaysian drug brand names." },
+  { key:'medical', label:'Medical',
+    text:"I am a Medical MO (internal medicine). Reason systematically with broad differentials, prioritise life-threatening causes, interpret investigations in context, and cover chronic disease management, polypharmacy, renal and hepatic dose adjustment, and disposition. Prefer Malaysian CPGs and brand names." },
+  { key:'ed',      label:'ED',
+    text:"I am an Emergency Department MO. Use an ABCDE approach, think time-critical diagnoses first (what must not be missed), give rapid risk stratification, immediate management steps, investigations that change management, and clear disposition and safety-net advice. Be concise and action-oriented. Prefer Malaysian CPGs and brand names." }
+];
+function applyRolePreset(targetId, sel) {
+  const key = sel.value;
+  sel.value = '';
+  if (!key) return;
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  const isClear = key === '__clear';
+  const preset = ROLE_PRESETS.find(r => r.key === key);
+  if (!isClear && !preset) return;
+  const cur = el.value.trim();
+  const curIsPreset = ROLE_PRESETS.some(r => r.text === cur);
+  if (cur && !curIsPreset && !confirm(isClear ? 'Clear your current custom instructions?' : `Replace your current custom instructions with the "${preset.label}" preset?`)) return;
+  el.value = isClear ? '' : preset.text;
+  if (targetId === 'caCustomPrompt') caSaveCustomPrompt();
+  if (targetId === 'stCustomPrompt') caShowToast(isClear ? 'Instructions cleared — click Save to keep' : `${preset.label} preset applied — click Save to keep`);
+  else caShowToast(isClear ? 'Instructions cleared' : `${preset.label} preset applied`);
+}
+
+// ─── Risk Score Finder ─────────────────────────────
+let _rsRawText = '';
+function openRiskScores() {
+  document.getElementById('riskScoreOverlay').style.display = 'flex';
+  _closeAllOverlays('riskScoreOverlay');
+}
+async function generateRiskScores() {
+  if (!S.apiKey) { alert('Please configure your API key first (Settings ⚙).'); return; }
+  const typed = document.getElementById('rsInput').value.trim();
+  const usePat = document.getElementById('rsUsePatient').checked;
+  const patCtx = usePat ? buildPatientContext(collectPatient()) : '';
+  const hasPat = patCtx && patCtx.replace(/===\s*PATIENT INFORMATION\s*===/i, '').trim();
+  if (!typed && !hasPat) { alert('Please enter some clinical details first (or fill in Patient Information).'); return; }
+
+  const btn = document.getElementById('rsGenBtn');
+  const output = document.getElementById('rsOutput');
+  const copyBtn = document.getElementById('rsCopyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-ring"></div> Calculating…';
+  copyBtn.style.display = 'none';
+  _rsRawText = '';
+  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Choosing and calculating relevant scores…</div>`;
+
+  const sysPrompt = `You are a clinical decision-support assistant for a Malaysian doctor. From the clinical details given, identify the validated risk scores and clinical decision rules that are genuinely relevant to THIS patient (at most 6, most relevant first) — e.g. Wells (PE/DVT), PERC, HEART, TIMI, GRACE, CHA2DS2-VASc, HAS-BLED, CURB-65, qSOFA/SOFA, NEWS2, Glasgow-Blatchford, Alvarado, Ottawa ankle/knee, Canadian CT Head, PECARN, Centor/McIsaac, Caprini, Child-Pugh, MELD, Bishop, Apgar, and any others that fit. Do not list scores that don't apply.
+
+For each score use this exact structure:
+## <Score name> — <one line on why it applies here>
+**Inputs used:** list each component with the value used and where it came from. If a component is not stated, write "not stated — assumed absent (0)" or "NOT STATED — needed" as appropriate.
+**Calculation:** show the arithmetic.
+**Result:** the score and its risk category. If missing data could change it, give the range (minimum–maximum) and name which missing items drive the range.
+**Suggested action:** what the score recommends, following Malaysian CPGs where available, otherwise the original validation guidance.
+
+Never invent findings that were not given. Keep it concise and scannable. Avoid markdown pipe tables. End with one line: "Verify against the original source before acting on any score."${S.customPrompt ? `\n\nAdditional instructions from the clinician: ${S.customPrompt}` : ''}`;
+  const userPrompt = `${hasPat ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}${typed ? `CLINICAL DETAILS:\n${typed}\n\n` : ''}Find and calculate the relevant risk scores.`;
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'HTTP-Referer': location.href },
+      body: JSON.stringify({ model: S.model, messages: [{ role:'system', content: sysPrompt }, { role:'user', content: userPrompt }], temperature: 0.2 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const text = data.choices?.[0]?.message?.content || '';
+    if (!text.trim()) throw new Error('Empty response — try again.');
+    _rsRawText = text;
+    output.innerHTML = renderMarkdown(text);
+    copyBtn.style.display = '';
+  } catch(e) {
+    output.innerHTML = `<div class="pcom-error">❌ ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15a9 9 0 0118 0"/><path d="M12 15l4-6"/><circle cx="12" cy="15" r="1.2"/></svg> Find Risk Scores';
+  }
+}
+function riskScoresCopy() {
+  const text = _rsRawText || document.getElementById('rsOutput').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById('rsCopyBtn');
+    const orig = b.textContent; b.textContent = '✓ Copied!';
+    setTimeout(() => { b.textContent = orig; }, 1800);
+  });
 }
 
 // ─── Clinic Assistant: New Patient button ───────────
