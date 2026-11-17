@@ -6664,7 +6664,7 @@ async function generateEntry() {
   if(d.pt_imp)  entry += `### Impression\n${d.pt_imp}\n\n`;
   if(d.pt_plan) entry += `### Plan\n${d.pt_plan}\n\n`;
 
-  entry += `---\n*Documented by: ________________________  ·  ${noteDate} ${timeStr}*`;
+  entry = entry.replace(/\s+$/, '');
 
   // Collect imaging images attached in Tab 2
   const imagingImages = IMAGING_FIELDS
