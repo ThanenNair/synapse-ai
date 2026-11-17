@@ -758,6 +758,23 @@ body.dark .ctx-banner-row{border-bottom-color:var(--border);}
 .pcom-output-empty{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.75rem;color:var(--text-muted);opacity:.45;font-size:.8rem;text-align:center;}
 .pcom-output-empty svg{opacity:.4;}
 .pcom-loading{display:flex;align-items:center;gap:.75rem;color:var(--text-muted);font-size:.82rem;padding:2rem;}
+
+/* ─── Generation placeholder (skeleton) + smooth reveal ─── */
+.gen-loading{display:flex;flex-direction:column;gap:.85rem;padding:1.1rem 1rem;width:100%;box-sizing:border-box;}
+.gen-loading-hdr{display:flex;align-items:center;gap:.65rem;color:var(--text-muted);font-size:.8rem;font-weight:500;}
+.gen-loading-label,.typing-label{transition:opacity .22s ease;}
+.gen-skel{display:flex;flex-direction:column;gap:.55rem;}
+.gen-skel-line{height:10px;border-radius:6px;background:linear-gradient(90deg,var(--bg2) 20%,rgba(var(--accent-rgb),.28) 50%,var(--bg2) 80%);background-size:220% 100%;animation:genShimmer 1.7s ease-in-out infinite;}
+.gen-skel-line:nth-child(2){animation-delay:.12s;}
+.gen-skel-line:nth-child(3){animation-delay:.24s;}
+.gen-skel-line:nth-child(4){animation-delay:.36s;}
+.gen-skel-line:nth-child(5){animation-delay:.48s;}
+@keyframes genShimmer{0%{background-position:120% 0;}100%{background-position:-120% 0;}}
+.gen-reveal{animation:genReveal .55s cubic-bezier(.22,.8,.3,1) both;}
+@keyframes genReveal{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes genFade{from{opacity:0;}to{opacity:1;}}
+.ca-output-body>*:not(.gen-loading),#pcomOutput>*:not(.gen-loading),#hovOutput>*:not(.gen-loading),#refBody>*:not(.gen-loading){animation:genFade .5s ease both;}
+@media (prefers-reduced-motion:reduce){.gen-skel-line,.gen-reveal,.ca-output-body>*,#pcomOutput>*,#hovOutput>*,#refBody>*{animation:none!important;}}
 .pcom-error{color:var(--danger);font-size:.8rem;padding:1rem;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;}
 .pcom-badge{display:inline-block;background:rgba(var(--accent-rgb),.12);color:var(--accent);border-radius:99px;font-size:.62rem;font-weight:700;padding:.1rem .45rem;letter-spacing:.04em;margin-bottom:.35rem;}
 .pcom-action-btn{background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:6px;padding:.28rem .7rem;font-size:.72rem;font-weight:600;cursor:pointer;transition:border-color .15s,color .15s;white-space:nowrap;}
@@ -6647,7 +6664,7 @@ async function generateEntry() {
   if(d.pt_imp)  entry += `### Impression\n${d.pt_imp}\n\n`;
   if(d.pt_plan) entry += `### Plan\n${d.pt_plan}\n\n`;
 
-  entry += `---\n*Documented by: ________________________  ·  ${noteDate} ${timeStr}*\n*Synapse AI — Clinical Intelligence Platform*`;
+  entry += `---\n*Documented by: ________________________  ·  ${noteDate} ${timeStr}*`;
 
   // Collect imaging images attached in Tab 2
   const imagingImages = IMAGING_FIELDS
@@ -6804,43 +6821,13 @@ Use formal medical language. Be specific. Acknowledge limitations when informati
       throw new Error(errMsg);
     }
 
-    // ── Streaming: show output as it arrives ──
+    // ── Receive the reply behind a skeleton, then reveal it in one smooth step ──
     const { card: sCard, bodyEl: sBody } = _beginSynapseCard(imagingImages);
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
     let buf = '';
-    const outWrap = document.getElementById('outputWrap');
-
-    // Stream phase: re-render the accumulated text as formatted markdown on a
-    // short throttle, instead of appending raw "**text**" characters and only
-    // formatting once the stream finishes — headings/bold/lists appear live,
-    // in fast batches, rather than raw markdown that pops into formatting at the end.
-    const streamNode = document.createElement('div');
-    streamNode.style.cssText = 'line-height:1.65;';
-    sBody.appendChild(streamNode);
-
-    // Only auto-scroll while the user is already at (or near) the bottom — if they've
-    // scrolled up to read something while generation is still running, leave them
-    // where they are instead of yanking them back down on every batch.
-    const NEAR_BOTTOM_PX = 60;
-    const isNearBottom = () => outWrap.scrollHeight - outWrap.scrollTop - outWrap.clientHeight < NEAR_BOTTOM_PX;
-    let _rafScroll = null;
-    const scheduleScroll = () => {
-      if (_rafScroll) return;
-      _rafScroll = requestAnimationFrame(() => { _rafScroll = null; outWrap.scrollTop = outWrap.scrollHeight; });
-    };
-
-    let _lastRenderAt = 0;
-    const RENDER_INTERVAL_MS = 80;
-    const renderBatch = () => {
-      const now = performance.now();
-      if (now - _lastRenderAt < RENDER_INTERVAL_MS) return;
-      _lastRenderAt = now;
-      const wasNearBottom = isNearBottom();
-      streamNode.innerHTML = renderMarkdown(fullText);
-      if (wasNearBottom) scheduleScroll();
-    };
+    const stopStatus = genStatusStart(sBody, GEN_STATUS_SYNAPSE);
 
     try {
       while (true) {
@@ -6849,7 +6836,6 @@ Use formal medical language. Be specific. Acknowledge limitations when informati
         buf += decoder.decode(value, { stream: true });
         const lines = buf.split('\n');
         buf = lines.pop(); // keep incomplete last line
-        let gotDelta = false;
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const payload = line.slice(6).trim();
@@ -6857,25 +6843,17 @@ Use formal medical language. Be specific. Acknowledge limitations when informati
           try {
             const json = JSON.parse(payload);
             const delta = json.choices?.[0]?.delta?.content || '';
-            if (delta) { fullText += delta; gotDelta = true; }
+            if (delta) fullText += delta;
           } catch (e) { /* ignore malformed SSE chunk */ }
         }
-        if (gotDelta) renderBatch();
       }
     } finally {
-      if (_rafScroll) { cancelAnimationFrame(_rafScroll); _rafScroll = null; }
-      const wasNearBottom = isNearBottom();
-      sBody.classList.remove('streaming');
-      // Single markdown render on completion — smooth fade from pre-wrap to formatted output
-      sBody.style.cssText = 'opacity:0;transition:opacity .2s ease;';
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        sBody.innerHTML = renderMarkdown(fullText || '⚠ No response received.');
-        if ((hasImagingImages || hasPatientInfoImg) && fullText) {
-          sBody.innerHTML += '<div class="img-ai-disclaimer">⚠️ <b>AI image interpretation — not a validated diagnostic tool.</b> Treat this as a second opinion only. Confirm ECG/imaging findings with the responsible senior clinician or radiologist before acting on them.</div>';
-        }
-        sBody.style.cssText = 'opacity:1;transition:opacity .2s ease;';
-        if (wasNearBottom) outWrap.scrollTop = outWrap.scrollHeight;
-      }));
+      stopStatus();
+      sBody.innerHTML = renderMarkdown(fullText || '⚠ No response received.');
+      if ((hasImagingImages || hasPatientInfoImg) && fullText) {
+        sBody.innerHTML += '<div class="img-ai-disclaimer">⚠️ <b>AI image interpretation — not a validated diagnostic tool.</b> Treat this as a second opinion only. Confirm ECG/imaging findings with the responsible senior clinician or radiologist before acting on them.</div>';
+      }
+      genRevealEl(sBody);
     }
 
     saveCurrentSession();
@@ -6918,7 +6896,7 @@ function _beginSynapseCard(imagingImages = []) {
       <div class="out-card-type synapse">${synapseIcon} Synapse Impression</div>
       <div class="out-card-time">${now}</div>
     </div>
-    <div class="out-card-body md-output streaming"></div>
+    <div class="out-card-body md-output">${genLoadingHtml(GEN_STATUS_SYNAPSE[0])}</div>
     ${imgSection}
     <div class="out-card-foot">
       <button class="btn-sm" onclick="copyCard(this)">
@@ -6995,6 +6973,33 @@ function escHtml(t) {
 }
 
 // ─── MARKDOWN RENDERER (AI bubbles only) ───────────
+// ─── Generation UI helpers ─────────────────────────
+// Answers are no longer typed out live. A calm skeleton + rotating status
+// line shows while the reply is received in the background, then the finished
+// answer is revealed in one smooth step.
+const GEN_STATUS_SYNAPSE = ['Reviewing the presentation…','Weighing the differentials…','Cross-checking Malaysian CPGs…','Drafting the management plan…'];
+const GEN_STATUS_CHAT = ['Synapse AI is thinking…','Reviewing the clinical picture…','Checking guidelines…','Composing the answer…'];
+function genLoadingHtml(label) {
+  return `<div class="gen-loading"><div class="gen-loading-hdr"><div class="loading-ring"></div><span class="gen-loading-label">${label}</span></div><div class="gen-skel"><div class="gen-skel-line" style="width:96%"></div><div class="gen-skel-line" style="width:88%"></div><div class="gen-skel-line" style="width:92%"></div><div class="gen-skel-line" style="width:64%"></div></div></div>`;
+}
+function genStatusStart(root, phrases) {
+  const label = root && (root.querySelector('.gen-loading-label') || root.querySelector('.typing-label'));
+  if (!label || !phrases || phrases.length < 2) return () => {};
+  let i = 0;
+  const t = setInterval(() => {
+    i = (i + 1) % phrases.length;
+    label.style.opacity = '0';
+    setTimeout(() => { label.textContent = phrases[i]; label.style.opacity = '1'; }, 220);
+  }, 3200);
+  return () => clearInterval(t);
+}
+function genRevealEl(el) {
+  el.classList.remove('gen-reveal');
+  void el.offsetWidth;
+  el.classList.add('gen-reveal');
+  setTimeout(() => el.classList.remove('gen-reveal'), 700);
+}
+
 function renderMarkdown(raw) {
   // 1. Escape HTML
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -7019,6 +7024,9 @@ function renderMarkdown(raw) {
   const lines = s.split('\n');
   const out = [];
   let inUL = false, inOL = false;
+  // Running ordered-list number: AI answers often put sub-bullets under each
+  // numbered item, which closes the <ol> — without this each item restarted at 1.
+  let olCounter = 0;
 
   const closeList = () => {
     if (inUL) { out.push('</ul>'); inUL = false; }
@@ -7071,7 +7079,7 @@ function renderMarkdown(raw) {
     // Restore code blocks
     const codeMatch = line.match(/^\x00CODE(\d+)\x00$/);
     if (codeMatch) {
-      closeList();
+      closeList(); olCounter = 0;
       out.push(`<pre class="md-pre"><code>${codeBlocks[+codeMatch[1]]}</code></pre>`);
       idx++; continue;
     }
@@ -7081,18 +7089,19 @@ function renderMarkdown(raw) {
       closeList();
       const { html, nextIndex } = parseTable(idx);
       out.push(html);
+      olCounter = 0;
       idx = nextIndex;
       continue;
     }
 
     // Headings
     let m;
-    if ((m = line.match(/^### (.+)/))) { closeList(); out.push(`<div class="md-h3">${inline(m[1])}</div>`); idx++; continue; }
-    if ((m = line.match(/^## (.+)/)))  { closeList(); out.push(`<div class="md-h2">${inline(m[1])}</div>`); idx++; continue; }
-    if ((m = line.match(/^# (.+)/)))   { closeList(); out.push(`<div class="md-h1">${inline(m[1])}</div>`); idx++; continue; }
+    if ((m = line.match(/^### (.+)/))) { closeList(); olCounter = 0; out.push(`<div class="md-h3">${inline(m[1])}</div>`); idx++; continue; }
+    if ((m = line.match(/^## (.+)/)))  { closeList(); olCounter = 0; out.push(`<div class="md-h2">${inline(m[1])}</div>`); idx++; continue; }
+    if ((m = line.match(/^# (.+)/)))   { closeList(); olCounter = 0; out.push(`<div class="md-h1">${inline(m[1])}</div>`); idx++; continue; }
 
     // Horizontal rule
-    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) { closeList(); out.push('<hr class="md-hr">'); idx++; continue; }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) { closeList(); olCounter = 0; out.push('<hr class="md-hr">'); idx++; continue; }
 
     // Unordered list
     if ((m = line.match(/^[-*+] (.+)/))) {
@@ -7103,10 +7112,15 @@ function renderMarkdown(raw) {
     }
 
     // Ordered list
-    if ((m = line.match(/^\d+[.)]\s+(.+)/))) {
+    if ((m = line.match(/^(\d+)[.)]\s+(.+)/))) {
       if (inUL) { out.push('</ul>'); inUL = false; }
-      if (!inOL) { out.push('<ol class="md-ol">'); inOL = true; }
-      out.push(`<li>${inline(m[1])}</li>`);
+      const srcNum = parseInt(m[1], 10);
+      let num;
+      if (inOL) num = olCounter + 1;
+      else num = olCounter > 0 ? Math.max(srcNum, olCounter + 1) : srcNum;
+      olCounter = num;
+      if (!inOL) { out.push(`<ol class="md-ol" start="${num}">`); inOL = true; }
+      out.push(`<li>${inline(m[2])}</li>`);
       idx++; continue;
     }
 
@@ -7114,7 +7128,7 @@ function renderMarkdown(raw) {
     if (line === '') { closeList(); out.push('<div class="md-gap"></div>'); idx++; continue; }
 
     // Normal text line
-    closeList();
+    closeList(); olCounter = 0;
     out.push(`<div class="md-line">${inline(line)}</div>`);
     idx++;
   }
@@ -7301,54 +7315,14 @@ Always recommend consulting senior clinicians for patient-specific decisions.`)
       return;
     }
 
-    // Streaming — first token appears instantly
-    removeTyping(typingEl);
+    // Receive the whole reply behind the "thinking" bubble, then replace it with
+    // the finished message in one smooth step (no live typing-out of the text).
     const chatWrap = document.getElementById('chatMessages');
-    const aiDiv = document.createElement('div');
-    aiDiv.className = 'msg ai';
-    const aiBub = document.createElement('div');
-    aiBub.className = 'msg-bub';
-    const streamNode = document.createElement('div');
-    streamNode.style.cssText = 'white-space:pre-wrap;word-break:break-word;line-height:1.6;';
-    aiBub.appendChild(streamNode);
-    aiBub.classList.add('streaming');
-    const avEl = document.createElement('div');
-    avEl.className = 'msg-av';
-    avEl.textContent = 'S';
-    aiDiv.appendChild(avEl);
-    aiDiv.appendChild(aiBub);
-    chatWrap.appendChild(aiDiv);
-    chatWrap.scrollTop = chatWrap.scrollHeight;
-
+    const stopChatStatus = genStatusStart(typingEl, GEN_STATUS_CHAT);
     const chatReader = resp.body.getReader();
     const chatDecoder = new TextDecoder();
     let fullText = '';
     let chatBuf = '';
-    // Only auto-scroll while the user is already at (or near) the bottom — if they've
-    // scrolled up to read something while generation is still running, leave them
-    // where they are instead of yanking them back down on every batch.
-    const NEAR_BOTTOM_PX = 60;
-    const isChatNearBottom = () => chatWrap.scrollHeight - chatWrap.scrollTop - chatWrap.clientHeight < NEAR_BOTTOM_PX;
-    let _chatRaf = null;
-    const chatScroll = () => {
-      if (_chatRaf) return;
-      _chatRaf = requestAnimationFrame(() => { _chatRaf = null; chatWrap.scrollTop = chatWrap.scrollHeight; });
-    };
-
-    // Re-render the accumulated text as formatted markdown on a short throttle,
-    // instead of appending raw "**text**" characters and only formatting at the
-    // end — users see bold/lists/headings appear live, in fast batches, rather
-    // than raw markdown syntax that pops into formatting once streaming finishes.
-    let _lastRenderAt = 0;
-    const RENDER_INTERVAL_MS = 80;
-    const renderBatch = () => {
-      const now = performance.now();
-      if (now - _lastRenderAt < RENDER_INTERVAL_MS) return;
-      _lastRenderAt = now;
-      const wasNearBottom = isChatNearBottom();
-      streamNode.innerHTML = renderMarkdown(fullText);
-      if (wasNearBottom) chatScroll();
-    };
 
     try {
       while (true) {
@@ -7357,7 +7331,6 @@ Always recommend consulting senior clinicians for patient-specific decisions.`)
         chatBuf += chatDecoder.decode(value, { stream: true });
         const lines = chatBuf.split('\n');
         chatBuf = lines.pop();
-        let gotDelta = false;
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const payload = line.slice(6).trim();
@@ -7365,22 +7338,37 @@ Always recommend consulting senior clinicians for patient-specific decisions.`)
           try {
             const json = JSON.parse(payload);
             const delta = json.choices?.[0]?.delta?.content || '';
-            if (delta) { fullText += delta; gotDelta = true; }
+            if (delta) fullText += delta;
           } catch(_) {}
         }
-        if (gotDelta) renderBatch();
       }
     } catch(streamErr) {
       if (!fullText) fullText = `⚠ Error receiving response — ${streamErr.message}`;
     } finally {
-      if (_chatRaf) { cancelAnimationFrame(_chatRaf); _chatRaf = null; }
-      const wasNearBottom = isChatNearBottom();
-      aiBub.classList.remove('streaming');
+      stopChatStatus();
+      // Only follow the new message down if the user hasn't scrolled away to
+      // read something else while it was generating.
+      const wasNearBottom = chatWrap.scrollHeight - chatWrap.scrollTop - chatWrap.clientHeight < 60;
+      removeTyping(typingEl);
+      const aiDiv = document.createElement('div');
+      aiDiv.className = 'msg ai';
+      const aiBub = document.createElement('div');
+      aiBub.className = 'msg-bub';
       aiBub.innerHTML = renderMarkdown(fullText || '⚠ No response received.');
       if (atts.length && fullText && !fullText.startsWith('⚠')) {
         aiBub.innerHTML += '<div class="img-ai-disclaimer">⚠️ <b>AI image interpretation — not a validated diagnostic tool.</b> Treat this as a second opinion only. Confirm ECG/imaging findings with the responsible senior clinician or radiologist before acting on them.</div>';
       }
-      if (wasNearBottom) chatWrap.scrollTop = chatWrap.scrollHeight;
+      const avEl = document.createElement('div');
+      avEl.className = 'msg-av';
+      avEl.textContent = 'S';
+      aiDiv.appendChild(avEl);
+      aiDiv.appendChild(aiBub);
+      chatWrap.appendChild(aiDiv);
+      if (wasNearBottom) {
+        // Bring the START of the new answer into view, rather than jumping to its end
+        const top = aiDiv.getBoundingClientRect().top - chatWrap.getBoundingClientRect().top + chatWrap.scrollTop - 12;
+        chatWrap.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
       if (fullText && !fullText.startsWith('⚠')) {
         S.chat.push({ role: 'assistant', content: fullText });
         saveCurrentSession();
@@ -7432,8 +7420,9 @@ function addTyping() {
     <div class="msg-bub">
       <div class="typing-bubble">
         <div class="typing"><span></span><span></span><span></span></div>
-        <span class="typing-label">Synapse AI is thinking…</span>
+        <span class="typing-label">${GEN_STATUS_CHAT[0]}</span>
       </div>
+      <div class="gen-skel" style="margin-top:.75rem;min-width:min(260px,62vw);"><div class="gen-skel-line" style="width:100%"></div><div class="gen-skel-line" style="width:88%"></div><div class="gen-skel-line" style="width:64%"></div></div>
     </div>`;
   wrap.appendChild(div);
   wrap.scrollTop = wrap.scrollHeight;
@@ -7862,7 +7851,7 @@ async function generateRefLetter() {
   btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
   body.style.opacity = '0';
   setTimeout(() => {
-    body.innerHTML = `<div class="ref-loading"><div class="loading-ring" style="border-color:rgba(0,0,0,.15);border-top-color:var(--primary);width:20px;height:20px;"></div> Generating referral letter…</div>`;
+    body.innerHTML = genLoadingHtml('Generating referral letter…');
     body.style.opacity = '1';
   }, 130);
 
@@ -22795,9 +22784,11 @@ function generateProcNote() {
   }
 
   // AI-enhanced mode with streaming
-  resultEl.innerHTML = '<div class="proc-result-body streaming" id="procStreamBox" style="min-height:120px;padding:1rem;font-size:.82rem;line-height:1.65;white-space:pre-wrap;"></div>';
+  resultEl.innerHTML = '<div class="proc-result-body" id="procStreamBox" style="min-height:120px;padding:1rem;font-size:.82rem;line-height:1.65;white-space:pre-wrap;"></div>';
   var streamBox = document.getElementById('procStreamBox');
-  streamBox.textContent = 'Enhancing note with AI…\n\n';
+  streamBox.style.whiteSpace = 'normal';
+  streamBox.innerHTML = genLoadingHtml('Refining the procedure note…');
+  var noteAcc = '';
 
   var systemPrompt = 'You are a senior hospital clinician. You will be given a structured procedure note template. Your task is to refine it into a polished, professional procedure note suitable for a medical chart. Keep all factual details exactly as provided. Improve phrasing and clinical completeness. Output only the final note text, no explanations.';
   var userMsg = 'Please refine this procedure note:\n\n' + finalNote;
@@ -22823,13 +22814,12 @@ function generateProcNote() {
     var reader = res.body.getReader();
     var decoder = new TextDecoder();
     var buf = '';
-    streamBox.textContent = '';
-    streamBox.classList.add('streaming');
-
     function pump() {
       return reader.read().then(function(result) {
         if (result.done) {
-          streamBox.classList.remove('streaming');
+          streamBox.style.whiteSpace = 'pre-wrap';
+          streamBox.textContent = noteAcc || finalNote;
+          genRevealEl(streamBox);
           resultEl.insertAdjacentHTML('beforeend',
             '<button onclick="procCopyNote()" style="margin-top:.75rem;padding:.4rem 1rem;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;">📋 Copy Note</button>');
           return;
@@ -22844,7 +22834,7 @@ function generateProcNote() {
           try {
             var j = JSON.parse(data);
             var delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
-            if (delta) streamBox.textContent += delta;
+            if (delta) noteAcc += delta;
           } catch(e) {}
         });
         return pump();
@@ -22853,7 +22843,7 @@ function generateProcNote() {
     return pump();
   }).catch(function(err) {
     // Fallback to template on error
-    streamBox.classList.remove('streaming');
+    streamBox.style.whiteSpace = 'pre-wrap';
     streamBox.textContent = finalNote;
     resultEl.insertAdjacentHTML('beforeend',
       '<div style="font-size:.75rem;color:var(--text-muted);margin-top:.4rem;">AI unavailable — showing template note. (' + err.message + ')</div>'
@@ -23888,7 +23878,7 @@ async function generateHandover() {
   btn.disabled   = true;
   btn.innerHTML  = '<div class="loading-ring"></div> Thinking…';
   copyBtn.style.display = 'none';
-  output.innerHTML = `<div class="hov-loading"><div class="loading-ring"></div> Generating handover document…</div>`;
+  output.innerHTML = genLoadingHtml('Generating handover document…');
 
   const patientBlock = _hovPatients.map((p, i) => [
     `Patient ${i + 1}:`,
@@ -24021,7 +24011,7 @@ async function pcomRomanize() {
   }
   section.style.display = 'flex';
   section.style.flexDirection = 'column';
-  body.innerHTML = '<div class="pcom-loading"><div class="loading-ring" style="width:16px;height:16px;border-width:2px;"></div> Converting to phonetic script…</div>';
+  body.innerHTML = genLoadingHtml('Converting to phonetic script…');
   btn.textContent = '✕ Hide';
   try {
     const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -24086,7 +24076,7 @@ async function generatePatComms() {
   romanizeBtn.style.display  = 'none';
   document.getElementById('pcomTranslitSection').style.display = 'none';
   _pcomRawText = '';
-  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating patient communication…</div>`;
+  output.innerHTML = genLoadingHtml('Generating patient communication…');
 
   const typeDesc = {
     diagnosis : 'Explain the patient\'s diagnosis and what it means for them',
@@ -24275,7 +24265,7 @@ async function generateCaPrep() {
   btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
   copyBtn.style.display = 'none';
   _caPrepRawText = '';
-  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Preparing follow-up guide…</div>`;
+  output.innerHTML = genLoadingHtml('Preparing follow-up guide…');
 
   const elapsedCtx = _caPrepElapsedCtx();
   const elapsedInstr = elapsedCtx
@@ -24333,7 +24323,7 @@ async function generateCaSummary() {
   btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
   copyBtn.style.display = 'none';
   _caSummaryRawText = '';
-  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating consult summary…</div>`;
+  output.innerHTML = genLoadingHtml('Generating consult summary…');
 
   const sysPrompt = `You are helping a Malaysian clinic doctor prepare a concise case summary to present to a specialist for informal input — a curbside consult, not a formal referral letter. Structure it tightly with these headings: PRESENTATION (1-2 sentences), KEY FINDINGS (bullet points), WORKING DIAGNOSIS / DIFFERENTIAL, MANAGEMENT SO FAR, QUESTION FOR SPECIALIST. Keep it brief enough to read aloud in under a minute. Do not invent findings not provided.` + _caCustomInstr();
   const userPrompt = `${patCtx ? `PATIENT INFORMATION:\n${patCtx}\n\n` : ''}CASE DETAILS:\n${caseDetails}\n\n${question ? `QUESTION FOR THE SPECIALIST:\n${question}` : 'No specific question given — infer a sensible one from the case.'}`;
@@ -24400,7 +24390,7 @@ async function generateCaMemo() {
   btn.innerHTML = '<div class="loading-ring"></div> Thinking…';
   copyBtn.style.display = 'none';
   _caMemoRawText = '';
-  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Generating MEMO…</div>`;
+  output.innerHTML = genLoadingHtml('Generating MEMO…');
 
   const todayLong = _caFormatDateLong(new Date());
   const sysPrompt = `You are a documentation assistant for a Malaysian clinic doctor, writing a formal MEMO letter (e.g. for an employer, school, or institution) based on the doctor's instruction. Extract the patient's main diagnosis from the provided patient information and incorporate it into the memo — if no diagnosis is available from the patient information or the instruction, use the placeholder "[diagnosis]" rather than inventing one. Follow this exact structure, with blank lines between each part:
@@ -24928,7 +24918,7 @@ async function generateLearningNotepad() {
   const output = document.getElementById('lnpOutput');
   btn.disabled = true;
   btn.innerHTML = '<div class="loading-ring"></div> Expanding…';
-  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Expanding your notes into teaching points…</div>`;
+  output.innerHTML = genLoadingHtml('Expanding your notes into teaching points…');
 
   try {
     const userPrompt = `RAW NOTES (may cover one or several distinct topics):\n${notes}\n\nGenerate the teaching point(s).`;
@@ -25026,7 +25016,7 @@ async function generateRiskScores() {
   btn.innerHTML = '<div class="loading-ring"></div> Calculating…';
   copyBtn.style.display = 'none';
   _rsRawText = '';
-  output.innerHTML = `<div class="pcom-loading"><div class="loading-ring"></div> Choosing and calculating relevant scores…</div>`;
+  output.innerHTML = genLoadingHtml('Choosing and calculating relevant scores…');
 
   const sysPrompt = `You are a clinical decision-support assistant for a Malaysian doctor. From the clinical details given, identify the validated risk scores and clinical decision rules that are genuinely relevant to THIS patient (at most 6, most relevant first) — e.g. Wells (PE/DVT), PERC, HEART, TIMI, GRACE, CHA2DS2-VASc, HAS-BLED, CURB-65, qSOFA/SOFA, NEWS2, Glasgow-Blatchford, Alvarado, Ottawa ankle/knee, Canadian CT Head, PECARN, Centor/McIsaac, Caprini, Child-Pugh, MELD, Bishop, Apgar, and any others that fit. Do not list scores that don't apply.
 
