@@ -1006,6 +1006,9 @@ select.finput{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xm
 .modal-desc{font-size:.8rem;color:var(--text-muted);line-height:1.6;margin-bottom:1.25rem;}
 .modal-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:.3rem;}
 .modal-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:.55rem .8rem;font-size:.85rem;font-family:'Roboto',sans-serif;color:var(--text);outline:none;margin-bottom:.85rem;transition:border-color .2s;}
+/* Masked like a password, but not a real password field — stops the browser/iCloud Passwords
+   "Enable Password AutoFill" prompt that appears on any page with a password input. */
+.pw-mask{-webkit-text-security:disc;text-security:disc;}
 .modal-input:focus{border-color:var(--accent);}
 .modal-select{appearance:none;}
 .modal-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:.25rem;}
@@ -3122,7 +3125,7 @@ body.dark #app::before{
     <div class="modal-title">Configure API Connection</div>
     <div class="modal-desc">Enter your OpenRouter API key to enable the Synapse AI chatbot and clinical impression generation. Get your key at openrouter.ai. Your key is stored locally on this device only.</div>
     <label class="modal-label">OpenRouter API Key</label>
-    <input class="modal-input" id="apiKeyInput" type="password" placeholder="sk-or-..." autocomplete="off"/>
+    <input class="modal-input pw-mask" id="apiKeyInput" type="text" placeholder="sk-or-..." autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"/>
     <label class="modal-label">Model</label>
     <select class="modal-input modal-select" id="modelSelect" onchange="_onModelSelectChange('modelSelect','modelCustomInp')">
       <optgroup label="OpenAI">
@@ -3243,10 +3246,10 @@ body.dark #app::before{
       <div class="login-sub">Sign in to your account to continue</div>
       <div class="login-err" id="loginErr"></div>
       <label class="modal-label">Username</label>
-      <input class="modal-input" id="loginUser" type="text" placeholder="Enter your username" autocomplete="username"
+      <input class="modal-input" id="loginUser" type="text" placeholder="Enter your username" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"
         onkeydown="if(event.key==='Enter')doLogin()"/>
       <label class="modal-label">Password</label>
-      <input class="modal-input" id="loginPass" type="password" placeholder="Enter your password" autocomplete="current-password"
+      <input class="modal-input pw-mask" id="loginPass" type="text" placeholder="Enter your password" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"
         onkeydown="if(event.key==='Enter')doLogin()"/>
       <button class="login-submit" onclick="doLogin()">Sign In</button>
       <div class="login-toggle">No account? <a onclick="showRegister()">Create one</a></div>
@@ -3257,13 +3260,13 @@ body.dark #app::before{
       <div class="login-sub">Join Synapse AI — takes 10 seconds</div>
       <div class="login-err" id="regErr"></div>
       <label class="modal-label">Username</label>
-      <input class="modal-input" id="regUser" type="text" placeholder="Choose a username"
+      <input class="modal-input" id="regUser" type="text" placeholder="Choose a username" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"
         onkeydown="if(event.key==='Enter')doRegister()"/>
       <label class="modal-label">Password</label>
-      <input class="modal-input" id="regPass" type="password" placeholder="Choose a password (min 6 chars)"
+      <input class="modal-input pw-mask" id="regPass" type="text" placeholder="Choose a password (min 6 chars)" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"
         onkeydown="if(event.key==='Enter')doRegister()"/>
       <label class="modal-label">Confirm Password</label>
-      <input class="modal-input" id="regConfirm" type="password" placeholder="Re-enter password"
+      <input class="modal-input pw-mask" id="regConfirm" type="text" placeholder="Re-enter password" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"
         onkeydown="if(event.key==='Enter')doRegister()"/>
       <button class="login-submit" onclick="doRegister()">Create Account</button>
       <div class="login-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
@@ -4011,7 +4014,7 @@ body.dark #app::before{
       <div class="settings-sec">
         <div class="settings-sec-title">API Connection</div>
         <label class="modal-label">OpenRouter API Key</label>
-        <input class="modal-input" id="stApiKey" type="password" placeholder="sk-or-..." autocomplete="off"/>
+        <input class="modal-input pw-mask" id="stApiKey" type="text" placeholder="sk-or-..." autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"/>
         <label class="modal-label">Model</label>
         <select class="modal-input modal-select" id="stModel" onchange="_onModelSelectChange('stModel','stModelCustom')">
           <optgroup label="OpenAI">
@@ -6973,6 +6976,12 @@ function escHtml(t) {
 }
 
 // ─── MARKDOWN RENDERER (AI bubbles only) ───────────
+// Browsers that can't visually mask a text input fall back to a real password field.
+(function(){
+  if (window.CSS && CSS.supports && (CSS.supports('-webkit-text-security','disc') || CSS.supports('text-security','disc'))) return;
+  document.querySelectorAll('.pw-mask').forEach(function(el){ el.type = 'password'; });
+})();
+
 // ─── Generation UI helpers ─────────────────────────
 // Answers are no longer typed out live. A calm skeleton + rotating status
 // line shows while the reply is received in the background, then the finished
