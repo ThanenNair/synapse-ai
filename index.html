@@ -760,6 +760,14 @@ body.dark .ctx-banner-row{border-bottom-color:var(--border);}
 .pcom-loading{display:flex;align-items:center;gap:.75rem;color:var(--text-muted);font-size:.82rem;padding:2rem;}
 
 /* ─── Generation placeholder (skeleton) + smooth reveal ─── */
+/* ─── OrthoBullets reference box (top of chat answers) ─── */
+.ob-box{border:1.5px solid var(--border);border-left:3px solid var(--accent);border-radius:9px;padding:.55rem .7rem;margin-bottom:.65rem;background:rgba(var(--accent-rgb),.06);white-space:normal;}
+.ob-hdr{display:flex;align-items:center;gap:.4rem;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.4rem;}
+.ob-links{display:flex;flex-direction:column;gap:.35rem;align-items:flex-start;}
+.ob-box a.ob-btn{display:inline-flex;align-items:center;gap:.4rem;background:var(--grad-primary);color:#fff;text-decoration:none;border-radius:7px;padding:.4rem .7rem;font-size:.74rem;font-weight:600;line-height:1.35;}
+.ob-box a.ob-btn:hover{opacity:.86;}
+.ob-note{display:flex;align-items:center;gap:.45rem;font-size:.73rem;color:var(--text-muted);flex-wrap:wrap;}
+.ob-box a.ob-plain{color:var(--accent);font-weight:600;}
 .gen-loading{display:flex;flex-direction:column;gap:.85rem;padding:1.1rem 1rem;width:100%;box-sizing:border-box;}
 .gen-loading-hdr{display:flex;align-items:center;gap:.65rem;color:var(--text-muted);font-size:.8rem;font-weight:500;}
 .gen-loading-label,.typing-label{transition:opacity .22s ease;}
@@ -7145,6 +7153,91 @@ function renderMarkdown(raw) {
   return out.join('');
 }
 
+// ─── OrthoBullets references for chat answers ──────
+// Runs alongside each chat answer: an OpenRouter web search restricted to
+// orthobullets.com, using the same API key. Only the doctor's question is sent
+// (never the patient context). A button is shown only for a page the search
+// itself returned, so links are never invented by the model. Signing in is the
+// browser's job — no OrthoBullets credentials belong in this public page.
+function _obShouldSearch(text) {
+  const t = (text || '').trim();
+  return t.length > 2 && !/^(hi|hello|hey|thanks?|thank you|tq|ok(ay)?|noted|great|good|nice|yes|no|bye)[\s!.]*$/i.test(t);
+}
+function _obIsOrthoUrl(u) {
+  try {
+    const x = new URL(u);
+    return x.protocol === 'https:' && (x.hostname === 'orthobullets.com' || x.hostname.endsWith('.orthobullets.com'));
+  } catch (_) { return false; }
+}
+function _obNorm(u) {
+  try { const x = new URL(u); return (x.hostname.replace(/^www\./, '') + x.pathname.replace(/\/+$/, '') + x.search).toLowerCase(); }
+  catch (_) { return ''; }
+}
+async function obSearch(question, previousQuestion) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 45000);
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: ctl.signal,
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${S.apiKey}`, 'X-Title':'Synapse AI' },
+      body: JSON.stringify({
+        model: S.model,
+        max_tokens: 1500,
+        plugins: [{ id:'web', engine:'exa', max_results:5, include_domains:['orthobullets.com'] }],
+        messages: [
+          { role:'system', content:'You match a doctor\'s question to OrthoBullets pages using the web search results provided. Select at most 3 results whose MAIN topic directly matches what is being asked. If the question is not about an orthopaedic or musculoskeletal topic, or no result is a direct match, select none. Never invent or alter a URL. Reply with ONLY raw JSON: {"urls":["<exact url from the results>"]}' },
+          { role:'user', content:`OrthoBullets: ${question.slice(0, 600)}${previousQuestion ? `\n(Previous question, only to resolve what this refers to: ${previousQuestion.slice(0, 200)})` : ''}` }
+        ]
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || resp.statusText);
+    const msg = data.choices?.[0]?.message || {};
+    const found = new Map();
+    (msg.annotations || []).forEach(a => {
+      const c = a && a.url_citation;
+      if (c && _obIsOrthoUrl(c.url)) found.set(_obNorm(c.url), { url:c.url, title:c.title || '' });
+    });
+    if (!found.size) return { status:'none', matches:[] };
+    const json = (msg.content || '').match(/\{[\s\S]*\}/);
+    if (!json) throw new Error('Unreadable search reply');
+    const picked = JSON.parse(json[0]).urls || [];
+    const seen = new Set();
+    const matches = [];
+    picked.forEach(u => {
+      const k = _obNorm(u);
+      if (found.has(k) && !seen.has(k) && matches.length < 3) { seen.add(k); matches.push(found.get(k)); }
+    });
+    return { status: matches.length ? 'found' : 'none', matches };
+  } catch (e) {
+    console.warn('OrthoBullets search failed:', e.message);
+    return { status:'error', matches:[] };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function obBoxEl(result) {
+  const box = document.createElement('div');
+  box.className = 'ob-box';
+  const attr = v => escHtml(String(v)).replace(/"/g, '&quot;');
+  let body;
+  const links = (result.matches || []).filter(m => _obIsOrthoUrl(m.url));
+  if (result.status === 'searching') {
+    body = '<div class="ob-note"><div class="loading-ring" style="width:12px;height:12px;border-width:2px;"></div> Searching OrthoBullets…</div>';
+  } else if (result.status === 'found' && links.length) {
+    body = '<div class="ob-links">' + links.map(m => {
+      const title = (m.title || '').replace(/\s*[-|–]\s*Orthobullets.*$/i, '').trim() || 'Open reference';
+      return `<a class="ob-btn" href="${attr(m.url)}" target="_blank" rel="noopener noreferrer">${escHtml(title)} — Open on OrthoBullets ↗</a>`;
+    }).join('') + '</div>';
+  } else {
+    const why = result.status === 'error' ? 'OrthoBullets search is unavailable right now.' : 'No matching OrthoBullets topic found.';
+    body = `<div class="ob-note">${why} <a class="ob-plain" href="https://www.orthobullets.com" target="_blank" rel="noopener noreferrer">Open OrthoBullets ↗</a></div>`;
+  }
+  box.innerHTML = '<div class="ob-hdr"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> OrthoBullets</div>' + body;
+  return box;
+}
+
 // ─── CHAT ───────────────────────────────────────────
 document.getElementById('chatInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
@@ -7175,8 +7268,11 @@ async function sendChat() {
   } else {
     userMsg = { role: 'user', content: text };
   }
+  const prevUser = [...S.chat].reverse().find(m => m.role === 'user' && typeof m.content === 'string');
   S.chat.push(userMsg);
   if (atts.length) clearAttachment();
+  // Runs concurrently with the answer below; never blocks or breaks it
+  const obPromise = _obShouldSearch(text) ? obSearch(text, prevUser?.content) : null;
 
   const typingEl = addTyping();
 
@@ -7300,7 +7396,7 @@ Always recommend consulting senior clinicians for patient-specific decisions.`)
         stream: true,
         messages: [
           { role: 'system', content: sysPrompt },
-          ...S.chat.slice(-20)
+          ...S.chat.slice(-20).map(({ role, content }) => ({ role, content }))
         ]
       })
     });
@@ -7379,9 +7475,22 @@ Always recommend consulting senior clinicians for patient-specific decisions.`)
         chatWrap.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
       }
       if (fullText && !fullText.startsWith('⚠')) {
-        S.chat.push({ role: 'assistant', content: fullText });
+        const reply = { role: 'assistant', content: fullText };
+        S.chat.push(reply);
         saveCurrentSession();
         generateFollowUpChips();
+        if (obPromise) {
+          let obEl = obBoxEl({ status: 'searching' });
+          aiBub.prepend(obEl);
+          obPromise.then(result => {
+            const done = obBoxEl(result);
+            obEl.replaceWith(done);
+            if (result.status !== 'error' && S.chat.includes(reply)) {
+              reply.ortho = result;
+              saveCurrentSession();
+            }
+          });
+        }
       }
     }
 
@@ -7462,7 +7571,7 @@ async function generateFollowUpChips() {
         max_tokens: 120,
         messages: [
           { role: 'system', content: 'You are a clinical assistant. Based on the conversation below, suggest exactly 2 or 3 short follow-up questions a doctor might ask next. Return ONLY a raw JSON array of strings — no markdown, no explanation, no code fences. Example: ["What are the red flags?","Suggest an investigation plan."]' },
-          ...S.chat.slice(-6)
+          ...S.chat.slice(-6).map(({ role, content }) => ({ role, content }))
         ]
       })
     });
@@ -16979,7 +17088,10 @@ function loadSession(sessionId) {
       <div class="msg-av">S</div>
       <div class="msg-bub">Session restored. Continuing from where you left off.</div>
     </div>`;
-  sess.messages.forEach(m => appendMsg(m.role === 'user' ? 'user' : 'ai', m.content, false));
+  sess.messages.forEach(m => {
+    appendMsg(m.role === 'user' ? 'user' : 'ai', m.content, false);
+    if (m.ortho) document.getElementById('chatMessages').lastElementChild?.querySelector('.msg-bub')?.prepend(obBoxEl(m.ortho));
+  });
 
   // Restore outputs
   const outWrap = document.getElementById('outputWrap');
