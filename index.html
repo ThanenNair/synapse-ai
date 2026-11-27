@@ -267,6 +267,14 @@ html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;color:var(
 .dark-toggle.ctx-toggle{margin-left:auto;width:32px;height:18px;flex-shrink:0;display:inline-block;vertical-align:middle;}
 .ctx-toggle .dark-toggle-knob{width:12px;height:12px;top:3px;left:3px;}
 .dark-toggle.ctx-toggle.on .dark-toggle-knob{transform:translateX(14px);}
+.lf-bar{display:flex;align-items:center;gap:.7rem;padding:.5rem .9rem;border-bottom:1px solid var(--border);flex-shrink:0;}
+.lf-text{flex:1;min-width:0;}
+.lf-title{font-size:.76rem;font-weight:700;display:flex;align-items:center;gap:.4rem;}
+.lf-status{font-size:.68rem;color:var(--text-muted);margin-top:2px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lf-bar.live{background:linear-gradient(90deg,rgba(6,214,160,.12),rgba(14,165,233,.08));}
+.lf-bar.live .ctx-dot{background:#06d6a0;animation:pulse 2s infinite;}
+.lf-bar.warn .ctx-dot{background:#f59e0b;}
+.lf-bar.warn .lf-status{white-space:normal;}
 body.dark .ctx-banner-row{border-bottom-color:var(--border);}
 
 .messages{
@@ -4173,6 +4181,14 @@ body.dark #app::before{
         </button>
         <input type="file" id="piImgInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none" onchange="handlePatientInfoImage(event)"/>
       </div>
+      <!-- Live Fill: copies the note being typed in the hospital records tab (needs the Synapse Live Fill extension) -->
+      <div class="lf-bar" id="lfBar">
+        <div class="lf-text">
+          <div class="lf-title"><span class="ctx-dot"></span>Live Fill from hospital notes</div>
+          <div class="lf-status" id="lfStatus">Off</div>
+        </div>
+        <button class="dark-toggle ctx-toggle" id="lfToggle" onclick="toggleLiveFill()" role="switch" aria-checked="false" aria-label="Live Fill from hospital notes" title="Fill Patient Information from the note you are typing in your hospital records tab"><span class="dark-toggle-knob"></span></button>
+      </div>
       <!-- Patient info images banner (shown when images attached) -->
       <div class="pi-img-banner" id="piImgBanner" style="display:none">
         <div class="pi-img-banner-hdr">
@@ -6006,6 +6022,7 @@ function showApp(showWelcome = false) {
     _setRailWidth(false);
   }
   updateApiStatus();
+  lfSet(localStorage.getItem(ukey('livefill_on')) === '1', false);
   // Set header user badge
   const initials = S.currentUser.slice(0,2).toUpperCase();
   document.getElementById('hdrUserAv').textContent   = initials;
@@ -6160,10 +6177,11 @@ function fixLayout() {
   const piB   = p2.querySelector('.pi-img-banner');
   const piBH  = piB && piB.style.display !== 'none' ? piB.offsetHeight : 0;
   const actH  = p2.querySelector('.act-btns')?.offsetHeight || 0;
+  const lfH   = p2.querySelector('.lf-bar')?.offsetHeight || 0;
 
   const hdr3H = p3.querySelector('.panel-hdr')?.offsetHeight || 0;
 
-  if (pform) pform.style.height = Math.max(80, panelH - hdr2H - piBH  - actH) + 'px';
+  if (pform) pform.style.height = Math.max(80, panelH - hdr2H - lfH - piBH - actH) + 'px';
   if (out)   out.style.height   = Math.max(80, panelH - hdr3H)                 + 'px';
 }
 // Coalesce resize events — at most one fixLayout call per animation frame
@@ -6459,6 +6477,383 @@ function buildPatientContext(d) {
   if(d.pt_plan) ctx += '\n--- CURRENT PLAN ---\n' + d.pt_plan + '\n';
 
   return ctx;
+}
+
+// ─── LIVE FILL: NOTE SORTER ─────────────────────────
+// Splits a clinical note into Tab 2 fields using the doctor's own headings.
+// Plain text rules only (no AI): wording is copied exactly, and any line that
+// isn't recognised stays with the section above it so nothing is dropped.
+const LF_FIELDS = [
+  'pt_name','pt_age','pt_gender','pt_ic','pt_ward','pt_cc','pt_duration','pt_hopi',
+  'pt_pmh','pt_allergy','pt_meds','pt_social',
+  'pt_bp','pt_hr','pt_spo2','pt_temp','pt_rr','pt_gcs','pt_weight','pt_height',
+  'pt_gen','pt_cvs','pt_resp','pt_abd','pt_neuro','pt_other_pe',
+  'lab_extra','img_ecg','img_cxr','img_ct','img_mri','img_us','img_other','pt_imp','pt_plan'
+];
+
+const LF_HEADINGS = [
+  ['imp',     'provisional diagnosis|working diagnosis|impression|diagnosis|assessment|imp|dx'],
+  ['plan',    'plan of management|management plan|management|plan|mx'],
+  ['exam',    'physical examination|on examination|examination|on exam|objective|o\\s*\\/\\s*e'],
+  ['hopi',    'history of present(?:ing)? (?:illness|complaint)|interval history|since last (?:visit|review|seen)|current(?:ly)? complaints?|currently|progress|history|subjective|hopi|hpi'],
+  ['cc',      'chief complaints?|presenting complaints?|c\\s*\\/\\s*o|complaints?'],
+  ['duration','duration'],
+  ['pmh',     'past medical history|medical history|underlying(?: illness(?:es)?| medical illness(?:es)?)?|comorbid(?:ities|s)?|pmhx|pmh|u\\s*\\/\\s*l'],
+  ['allergy', 'drug allergy|allergies|allergy'],
+  ['meds',    'current medications?|medications?|drug history|meds'],
+  ['social',  'social history|social hx|surgical history|past surgical history|family history|family hx|occupation|smoking(?: history)?|pshx|psh'],
+  ['lab',     'blood results|blood investigations?|bloods|labs?(?: results)?'],
+  ['ix',      'investigations?|imaging|ix']
+].map(([key, alt]) => ({
+  key,
+  colon: new RegExp('^(?:' + alt + ')\\s*(?:\\([^)]{0,40}\\))?\\s*(?::|\\s[-–]\\s)\\s*(.*)$', 'i'),
+  bare:  new RegExp('^(?:' + alt + ')\\s*(?:\\([^)]{0,40}\\))?\\s*:?$', 'i')
+}));
+
+const LF_MODALITY = [
+  ['img_cxr',   /^(?:chest\s*x[\s-]?ray|cxr)\b/i],
+  ['img_ecg',   /^(?:ecg|ekg)\b/i],
+  ['img_ct',    /^ct\b(?!\s*\/)/i],
+  ['img_mri',   /^mri\b/i],
+  ['img_us',    /^(?:ultrasound|usg|u\/s|pocus)\b/i],
+  ['img_other', /^(?:x[\s-]?rays?|radiographs?)\b/i]
+];
+
+const LF_EXAM_SUBS = [
+  ['pt_cvs',   /^(?:cvs|cardiovascular(?: system| examination| exam)?)\s*(?::\s*(.*))?$/i],
+  ['pt_resp',  /^(?:resp|respiratory(?: system| examination| exam)?|lungs?)\s*(?::\s*(.*))?$/i],
+  ['pt_abd',   /^(?:abdomen|abdominal(?: examination| exam)?|abd|p\s*\/\s*a|pa|per abdomen)\s*(?::\s*(.*))?$/i],
+  ['pt_neuro', /^(?:cns|neuro|neurology|neurological(?: examination| exam)?)\s*(?::\s*(.*))?$/i],
+  ['pt_gen',   /^(?:general(?: examination| exam| condition)?)\s*(?::\s*(.*))?$/i]
+];
+
+const LF_GENERAL_LINE = /\b(?:alert|conscious|comfortable|orientated|oriented|not (?:tachypn?oeic|in (?:respiratory )?distress|pale|jaundiced)|well hydrated|hydration|good hydration|afebrile|ambulat\w*|pink in room air|nad)\b/i;
+
+const LF_VITALS = [
+  ['pt_bp',     /\bBP\s*[:=]?\s*(\d{2,3}\s*\/\s*\d{2,3})(?:\s*mm\s*hg)?/i],
+  ['pt_hr',     /\b(?:HR|PR|pulse(?: rate)?|heart rate)\s*[:=]?\s*(\d{2,3})(?![\d.\/])(?:\s*bpm|\s*\/\s*min)?/i],
+  ['pt_spo2',   /(?:\bSpO2|\bSpO₂|\bSats?)\s*[:=]?\s*(\d{2,3})(?!\d)\s*%?(?:\s*(?:on\s*)?(?:RA|room air))?/i],
+  ['pt_temp',   /\b(?:temperature|temp|T)\s*[:=]?\s*((?:3[4-9]|4[0-2])(?:\.\d)?)(?![\d.])(?:\s*°?\s*C\b)?/i],
+  ['pt_rr',     /\b(?:RR|resp(?:iratory)? rate)\s*[:=]?\s*(\d{1,2})(?![\d.\/])(?:\s*\/\s*min)?/i],
+  ['pt_gcs',    /\bGCS\s*[:=]?\s*(E\d\s*V\w\s*M\d(?:\s*=?\s*\d{1,2}(?:\s*\/\s*15)?)?|\d{1,2}(?:\s*\/\s*15)?)(?!\d)/i],
+  ['pt_weight', /\b(?:weight|wt|BW)\s*[:=]?\s*(\d{1,3}(?:\.\d+)?)\s*kg\b/i],
+  ['pt_height', /\b(?:height|ht)\s*[:=]?\s*(\d{2,3}(?:\.\d+)?)\s*cm\b/i]
+];
+
+const LF_IC = /\b\d{6}\s*-?\s*\d{2}\s*-?\s*\d{4}\b/g;
+
+function _lfHeading(line) {
+  const ul = line.match(/^(?:u\s*\/\s*l|underlying)\s+(?!:)(.+)$/i);
+  if (ul) return { key: 'pmh', rest: ul[1].trim() };
+  for (const h of LF_HEADINGS) {
+    let m = line.match(h.colon);
+    if (m) return { key: h.key, rest: m[1].trim() };
+    if (h.bare.test(line)) return { key: h.key, rest: '' };
+  }
+  for (const [field, re] of LF_MODALITY) {
+    if (!re.test(line)) continue;
+    const hasColon = /^[^:]{0,60}:/.test(line);
+    const shortTitle = line.length <= 45 &&
+      !/\b(?:done|shows?|showed|noted|on|to|next|repeat|review|pending|book|order|for|was|is|no|if)\b/i.test(line);
+    if (hasColon || shortTitle) return { key: 'img', field, rest: line };
+  }
+  return null;
+}
+
+function _lfVitals(line, out) {
+  let left = line, found = false;
+  LF_VITALS.forEach(([id, re]) => {
+    const m = left.match(re);
+    if (m) { out[id] = m[1].replace(/\s*\/\s*/, '/').trim(); left = left.replace(m[0], ' '); found = true; }
+  });
+  // true → the line was only vital signs, so it needn't be repeated as text
+  return found && !left.replace(/\b(?:vitals?|signs|v\s*\/\s*s)\b/gi, '').replace(/[^a-z0-9]/gi, '');
+}
+
+function _lfParseBox(text, startKey, buf, one) {
+  const add = (id, line) => { (buf[id] = buf[id] || []).push(line); };
+  const hasText = id => (buf[id] || []).some(l => l.trim());
+  let sec = startKey, sub = 'pt_gen', imgField = 'img_other', prev = '';
+
+  const lines = String(text || '').replace(/\r/g, '').replace(/ /g, ' ').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].replace(LF_IC, '').replace(/\b(?:I\/?C|NRIC)\s*(?:no\.?)?\s*[:#-]\s*$/i, '').trim();
+    if (!line) {
+      if (lines[i].trim()) continue;           // line held only an IC number
+      const id = sec === 'exam' ? sub : sec === 'img' ? imgField : sec === 'intro' ? 'pt_hopi' : 'pt_' + sec;
+      if (hasText(id)) add(id, '');
+      prev = '';
+      continue;
+    }
+
+    const mrn = line.match(/^(?:MRN|RN)\s*(?:no\.?)?\s*[:#-]?\s*(\d{6,10})$/i);
+    if (mrn) { one.pt_ic = mrn[1]; continue; }
+
+    let h = _lfHeading(line);
+    // Inside a plan, "CT scan: book next week" or "Medications: ..." are plan
+    // items. Only a new main section ends the plan.
+    if (h && sec === 'plan' && !['imp','hopi','exam','plan'].includes(h.key)) h = null;
+
+    if (h) {
+      if (h.key === 'img') {
+        sec = 'img'; imgField = h.field; add(imgField, h.rest);
+      } else if (h.key === 'exam') {
+        sec = 'exam'; sub = 'pt_gen';
+        if (h.rest && !_lfVitals(h.rest, one)) { add(LF_GENERAL_LINE.test(h.rest) ? 'pt_gen' : 'pt_other_pe', h.rest); }
+      } else if (h.key === 'lab') {
+        sec = 'lab'; add('lab_extra', line);
+      } else if (h.key === 'ix') {
+        sec = 'img'; imgField = 'img_other';
+        if (h.rest) add(imgField, h.rest);
+      } else if (h.key === 'social') {
+        sec = 'social'; add('pt_social', line);
+      } else {
+        const id = 'pt_' + h.key;
+        // keep the heading itself when two headings share one box
+        if (hasText(id) && h.key === 'hopi') add(id, line.slice(0, line.length - h.rest.length).trim());
+        // "Allergy: Penicillin" / "Duration: 2 weeks" are complete on one line
+        if (h.rest && (h.key === 'allergy' || h.key === 'duration')) add(id, h.rest);
+        else { sec = h.key; if (h.rest) add(id, h.rest); }
+      }
+      prev = line;
+      continue;
+    }
+
+    // "NKMI / NKDFA" and similar can appear anywhere above the exam
+    if (sec === 'intro' || sec === 'pmh' || sec === 'allergy' || sec === 'hopi') {
+      const parts = line.split(/\s*(?:\/|,|;|&|\band\b)\s*/i).filter(Boolean);
+      const isNKMI = p => /^(?:nkmi|no known medical illness(?:es)?)$/i.test(p);
+      const isNKA  = p => /^(?:nkda|nkdfa|nkfda|nkfa|nka|no known (?:drug|food)(?: (?:or|and) food)? allerg(?:y|ies))$/i.test(p);
+      if (parts.length && parts.every(p => isNKMI(p) || isNKA(p))) {
+        parts.forEach(p => add(isNKMI(p) ? 'pt_pmh' : 'pt_allergy', p));
+        continue;
+      }
+    }
+
+    if (['intro','pmh','allergy','meds','cc','duration'].includes(sec) &&
+        (/\b(?:hand(?:ed)?[\s-]*dominan(?:t|ce)|dominant hand|[RL]HD)\b/i.test(line) || /^(?:non[\s-]?|ex[\s-]?)?smoker\b|^works? as\b/i.test(line))) {
+      add('pt_social', line); continue;
+    }
+
+    if (sec === 'intro') {
+      const named = line.match(/^(?:patient'?s? )?name\s*:\s*(.+)$/i);
+      if (named && !one.pt_name) { one.pt_name = named[1].trim(); continue; }
+
+      const age = line.match(/^(\d{1,3})\s*(?:-?\s*(?:years?|yrs?|y)\s*[-\/]?\s*(?:old|o)\b|-?\s*(?:years?|yrs?)\b|\s*y\s*\/?\s*o\b|\s*\/(?=\s*(?:m|f|male|female|malay|chinese|indian)\b))/i);
+      if (age && !one.pt_age) {
+        one.pt_age = age[1];
+        const g = line.match(/\b(male|female|lelaki|perempuan|boy|girl|man|woman|gentleman|lady)\b/i) || line.match(/\/\s*(m|f)\b/i);
+        if (g) one.pt_gender = /^(?:m|male|lelaki|boy|man|gentleman)$/i.test(g[1]) ? 'Male' : 'Female';
+        const extra = line.slice(age[0].length)
+          .replace(/\b(?:old|male|female|lelaki|perempuan|boy|girl|man|woman|gentleman|lady|malay|chinese|indian|sikh|iban|kadazan|orang asli|others?|m|f)\b/gi, '')
+          .replace(/[^a-z0-9]/gi, '');
+        if (extra) add('pt_hopi', line);
+        continue;
+      }
+
+      const nextText = (lines.slice(i + 1).find(l => l.trim()) || '').trim();
+      const looksName = /^[A-Za-z][A-Za-z .'@\/-]{2,70}$/.test(line) && line.split(/\s+/).length <= 10;
+      const notName = /\b(?:clinic|review|follow|ward|referral|clerking|dominant|allerg|trauma team|case|note|dr)\b/i.test(line);
+      if (!one.pt_name && looksName && !notName &&
+          (/\s(?:a\/l|a\/p|bin|binti|bt)\s/i.test(line) || /^\d{1,3}\s*(?:y|\/)/i.test(nextText))) {
+        one.pt_name = line; continue;
+      }
+      if (!one.pt_ward && !buf.pt_hopi && line.length <= 60 && /\b(?:clinic|ward|review|follow[\s-]?up|clerking)\b/i.test(line)) {
+        one.pt_ward = line; continue;
+      }
+      if (_lfVitals(line, one)) continue;
+      add('pt_hopi', line);
+    } else if (sec === 'exam') {
+      let matched = false;
+      for (const [id, re] of LF_EXAM_SUBS) {
+        const m = line.match(re);
+        if (!m) continue;
+        sub = id; matched = true;
+        const rest = (m[1] || '').trim();
+        if (rest && !_lfVitals(rest, one)) add(id, rest);
+        break;
+      }
+      if (!matched) {
+        const isTitle = line.length <= 60 && (/\b(?:examination|exam)\s*:?$/i.test(line) || (!prev && /:$/.test(line)));
+        if (isTitle) {
+          sub = 'pt_other_pe';
+          if (hasText(sub) && buf[sub][buf[sub].length - 1] !== '') add(sub, '');
+          add(sub, line);
+        } else if (!_lfVitals(line, one)) {
+          if (sub === 'pt_gen' && !LF_GENERAL_LINE.test(line)) sub = 'pt_other_pe';
+          add(sub, line);
+        }
+      }
+    } else if (sec === 'img') {
+      add(imgField, line);
+    } else if (sec === 'lab') {
+      add('lab_extra', line);
+    } else {
+      add('pt_' + sec, line);
+    }
+    prev = line;
+  }
+}
+
+// boxes: [{ label, text }] — one entry per note box on the hospital page
+function lfParse(boxes) {
+  const buf = {}, one = {};
+  (boxes || []).forEach(b => {
+    const label = String(b.label || '').toLowerCase();
+    let start = 'intro';
+    if (!/subjective|current complaint/.test(label)) {
+      if (/past history|past medical/.test(label))                  start = 'pmh';
+      else if (/objective|examination/.test(label))                 start = 'exam';
+      else if (/assessment|impression|diagnosis/.test(label))       start = 'imp';
+      else if (/\bplan\b|management/.test(label))                   start = 'plan';
+      else if (/investigation/.test(label))                         start = 'img';
+      else if (/progress/.test(label))                              start = 'intro';
+    }
+    _lfParseBox(b.text, start, buf, one);
+  });
+
+  const out = {};
+  Object.entries(buf).forEach(([id, lines]) => {
+    const text = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (text) out[id] = text;
+  });
+  Object.entries(one).forEach(([id, v]) => { if (v) out[id] = out[id] ? v + '\n' + out[id] : v; });
+  return out;
+}
+
+// ─── LIVE FILL: TAB 2 ENGINE ────────────────────────
+// The Synapse Live Fill browser extension answers 'pull' messages with the
+// latest note from the hospital tab. A website cannot read other tabs itself.
+const LF = { on:false, timer:null, unanswered:0, lastSig:'', quiet:false };
+
+function lfStatus(text, mode) {
+  const el = document.getElementById('lfStatus'), bar = document.getElementById('lfBar');
+  if (!el || !bar) return;
+  const changed = el.textContent !== text || !bar.classList.contains(mode || 'idle');
+  if (!changed) return;
+  el.textContent = text; el.title = text;
+  bar.classList.remove('idle','live','warn');
+  bar.classList.add(mode || 'idle');
+  _fixLayoutRAF();
+}
+
+function lfSet(on, remember) {
+  const was = LF.on;
+  LF.on = !!on; LF.unanswered = 0; LF.lastSig = '';
+  clearInterval(LF.timer); LF.timer = null;
+  const btn = document.getElementById('lfToggle');
+  if (btn) { btn.classList.toggle('on', LF.on); btn.setAttribute('aria-checked', String(LF.on)); }
+  if (remember && S.currentUser) localStorage.setItem(ukey('livefill_on'), LF.on ? '1' : '0');
+  if (LF.on) {
+    lfStatus('Waiting for your hospital note…');
+    LF.timer = setInterval(lfPoll, 1000);
+    lfPoll();
+  } else {
+    if (was) window.postMessage({ source:'synapse-app', type:'off' }, location.origin);
+    lfStatus('Off');
+  }
+}
+function toggleLiveFill() { lfSet(!LF.on, true); }
+
+function lfPoll() {
+  if (!LF.on || !S.currentUser) return;
+  LF.unanswered++;
+  if (LF.unanswered > 4 && !document.hidden) {
+    lfStatus('Extension not detected. Install “Synapse Live Fill” in Chrome, then refresh this page.', 'warn');
+  }
+  window.postMessage({ source:'synapse-app', type:'pull' }, location.origin);
+}
+
+window.addEventListener('message', e => {
+  if (e.source !== window || e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.source !== 'synapse-bridge' || d.type !== 'note' || !LF.on || !S.currentUser) return;
+  LF.unanswered = 0;
+  if (d.note && Array.isArray(d.note.boxes)) lfReceive(d.note);
+  else if (!LF.lastSig) lfStatus('Connected. Click into your hospital note box and start typing.');
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) lfPoll(); });
+window.addEventListener('pagehide', () => { if (LF.on) window.postMessage({ source:'synapse-app', type:'off' }, location.origin); });
+
+const _lfNorm = v => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Session ids are 'sess_<time created>'
+const _lfMadeToday = id => new Date(Number(String(id || '').slice(5))).toDateString() === new Date().toDateString();
+// Never move to another patient while an answer is still being written
+const _lfBusy = () => !!document.querySelector('#btnEntry:disabled, #btnSynapse:disabled, #chatMessages .typing-bubble, #outputWrap .gen-loading, #refBody .gen-loading, .img-field-interpret:disabled, .ca-gen-btn:disabled');
+
+function _lfFormIsEmpty() {
+  const d = collectPatient();
+  return !Object.entries(d).some(([k, v]) => k !== 'pt_date' && v) && !S.chat.length &&
+    !document.querySelector('#outputWrap .out-card') && !S.patientInfoImages.length &&
+    !Object.keys(S.imagingAttachments || {}).length &&
+    !(document.getElementById('caPrepPrevious')?.value || '').trim() &&
+    !(document.getElementById('caSummaryCase')?.value || '').trim();
+}
+
+// Keeps each patient in their own session. Returns false if it has to wait.
+function _lfMatchSession(key, parsed) {
+  if (S.liveKey === key && _lfMadeToday(S.sessionId)) return true;
+  const existing = getSessions().find(s => s.liveKey === key && _lfMadeToday(s.id));
+  const cur = collectPatient();
+  const samePatient = _lfMadeToday(S.sessionId) && parsed.pt_name && _lfNorm(cur.pt_name) === _lfNorm(parsed.pt_name) &&
+    !(parsed.pt_ic && cur.pt_ic && parsed.pt_ic !== cur.pt_ic);
+  const adopt = !existing ? (samePatient || (_lfMadeToday(S.sessionId) && _lfFormIsEmpty())) : existing.id === S.sessionId;
+  if (!adopt) {
+    if (_lfBusy()) {
+      lfStatus('A different patient is open in your hospital tab. Live Fill will switch once Synapse finishes generating.', 'warn');
+      return false;
+    }
+    const hadData = !_lfFormIsEmpty();
+    // Switching by itself must not send anyone to the AI. Learning points are
+    // only made for a patient you actually used AI on, and not again each time
+    // you flip back and forth between two patients.
+    const usedAI = S.chat.length > 0 || !!document.querySelector('#outputWrap .out-card') ||
+      !!(_caPrepRawText || '').trim() || !!(_caSummaryRawText || '').trim();
+    LF.quiet = !!existing || !usedAI;
+    try { if (existing) loadSession(existing.id); else caNewPatient(); }
+    finally { LF.quiet = false; }
+    if (hadData) caShowToast('Live Fill moved to a different patient. The previous one is saved in History.');
+  }
+  S.liveKey = key;
+  return true;
+}
+
+// Updates only what Live Fill itself wrote (or empty boxes). Anything you
+// edit inside Synapse is left exactly as you typed it.
+function _lfApply(parsed) {
+  const applied = S.liveApplied || (S.liveApplied = {});
+  let kept = 0;
+  LF_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let next = parsed[id] || '';
+    if (el.tagName === 'INPUT') next = next.replace(/\s*\n+\s*/g, '; ');
+    const cur = el.value;
+    if (cur === next) { if (next) applied[id] = next; return; }
+    const ours = !cur.trim() || cur === applied[id];
+    if (!ours || el === document.activeElement) { if (next) kept++; return; }
+    el.value = next;
+    if (el.value) applied[id] = el.value; else delete applied[id];
+  });
+  return kept;
+}
+
+function lfReceive(note) {
+  const sig = JSON.stringify([note.patientKey, note.boxes]);
+  if (sig === LF.lastSig) return;
+  const parsed = lfParse(note.boxes);
+  if (!Object.keys(parsed).length) return;
+  const key = note.patientKey || 'page:' + note.pageId;
+  if (!_lfMatchSession(key, parsed)) return; // retried on the next poll
+  const kept = _lfApply(parsed);
+  LF.lastSig = sig;
+  updateCtx();
+  saveCurrentSession();
+  renderSidebar();
+  const filled = LF_FIELDS.filter(id => document.getElementById(id)?.value.trim()).length;
+  const time = new Date().toLocaleTimeString('en-MY', { hour:'2-digit', minute:'2-digit' });
+  lfStatus(`Live · ${document.getElementById('pt_name').value.trim() || 'patient'} · ${filled} fields · updated ${time}` +
+    (kept ? ` · ${kept} kept as you edited` : ''), 'live');
 }
 
 // ─── CLEAR PATIENT ─────────────────────────────────
@@ -16867,6 +17262,7 @@ async function doRegister() {
 
 function doLogout() {
   saveCurrentSession();
+  lfSet(false, false);
   sessionStorage.removeItem('sai_session');
   S.currentUser = null; S.sessionId = null; S.chat = []; S.apiKey = '';
   closeSidebar();
@@ -16922,6 +17318,7 @@ function startNewSession() {
   S.sessionId = 'sess_' + Date.now();
   try{var _ss=JSON.parse(sessionStorage.getItem('sai_session')||'{}');_ss.sessionId=S.sessionId;sessionStorage.setItem('sai_session',JSON.stringify(_ss));}catch(e){}
   S.chat = [];
+  S.liveKey = null; S.liveApplied = {};
 
   // Reset chat UI
   document.getElementById('chatMessages').innerHTML = `
@@ -17059,7 +17456,9 @@ function saveCurrentSession() {
     outputs,
     refLetter,
     caPrep,
-    caSummary
+    caSummary,
+    liveKey: S.liveKey || null,
+    liveApplied: S.liveApplied || null
   };
   if (idx >= 0) sessions[idx] = sess; else sessions.unshift(sess);
   saveSessions(sessions.slice(0, 60));
@@ -17074,6 +17473,15 @@ function loadSession(sessionId) {
   S.sessionId = sess.id;
   try{var _ss=JSON.parse(sessionStorage.getItem('sai_session')||'{}');_ss.sessionId=S.sessionId;sessionStorage.setItem('sai_session',JSON.stringify(_ss));}catch(e){}
   S.chat = sess.messages || [];
+  S.liveKey = sess.liveKey || null; S.liveApplied = sess.liveApplied || {};
+
+  // Attached images aren't saved with a session, so never carry one patient's into another
+  if (_outgoingSessId !== sessionId) {
+    IMAGING_FIELDS.forEach(k => { if (S.imagingAttachments[k]) clearImagingAttach(k); });
+    S.imagingAttachments = {};
+    if (S.patientInfoImages.length) clearPatientInfoImage();
+    if (S.attachments.length) clearAttachment();
+  }
 
   // Restore patient form
   if (sess.patientData) {
@@ -24621,7 +25029,7 @@ function caShowToast(msg, isError) {
 }
 
 async function caGenerateTeachingPoints(sessionId) {
-  if (!S.currentUser) return;
+  if (!S.currentUser || LF.quiet) return;
   if (!S.apiKey) { caShowToast('Learning points skipped — no API key configured (Settings ⚙)', true); return; }
   const sessions = getSessions();
   const sess = sessions.find(s => s.id === sessionId);
